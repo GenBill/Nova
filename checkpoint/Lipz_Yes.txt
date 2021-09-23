@@ -1,0 +1,43 @@
+
+# Baseline
+
+Eval on ./checkpoint/clean-final-cifar10.pth
+Eval (Adver) , Loss avg. 15.916857, Acc. 0.011000
+Eval_2 (Adver) , 1st-True 0.981083, True. 0.010175
+Eval (Clean) , Loss avg. 0.219712, Acc. 0.947300
+Locally Lipz : 119.960753
+
+Eval on ./checkpoint/adv-final-cifar10.pth
+Eval (Adver) , Loss avg. 3.981211, Acc. 0.476500
+Eval_2 (Adver) , 1st-True 0.455064, True. 0.476698
+Eval (Clean) , Loss avg. 0.777392, Acc. 0.834400
+Locally Lipz : 39.612020
+
+
+
+# Ours
+
+Eval on ./checkpoint/shades-clean-final-cifar10.pth
+Eval (Adver) , Loss avg. 2.398174, Acc. 0.050700
+Eval_2 (Adver) , 1st-True 0.097049, True. 0.092267
+Eval (Clean) , Loss avg. 1.579602, Acc. 0.958100
+Locally Lipz : 7.084660
+
+Eval on ./checkpoint/shades-adv-final-cifar10.pth
+Eval (Adver) , Loss avg. 1.999415, Acc. 0.520900
+Eval_2 (Adver) , 1st-True 0.040740, True. 0.145446
+Eval (Clean) , Loss avg. 1.643224, Acc. 0.870200
+Locally Lipz : 1.133825
+
+Eval on ./checkpoint/double-adv-final-cifar10.pth
+Eval (Adver) , Loss avg. 1.983731, Acc. 0.542000
+Eval_2 (Adver) , 1st-True 0.024975, True. 0.145871
+Eval (Clean) , Loss avg. 1.718319, Acc. 0.829800
+Locally Lipz : 0.981654
+
+Eval on ./checkpoint/mesa-adv-final-cifar10.pth
+Eval (Adver) , Loss avg. 2.007146, Acc. 0.555200
+Eval_2 (Adver) , 1st-True 0.016271, True. 0.140164
+Eval (Clean) , Loss avg. 1.826859, Acc. 0.829500
+Locally Lipz : 0.685502
+

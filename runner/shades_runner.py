@@ -7,6 +7,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
+# from torch import rand as my_Rand
+from runner.my_Rand import my_Rand
+
 def soft_loss(pred, soft_targets):
     return torch.sqrt(nn.MSELoss()(pred, soft_targets))
 
@@ -50,7 +53,7 @@ class ShadesRunner():
             labels_1 = F.one_hot(labels_1, num_classes=self.num_class)
 
             # Create inputs & labels
-            rand_vector = torch.rand((batchSize, 1), device=self.device)
+            rand_vector = my_Rand((batchSize, 1), device=self.device)
             inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
             labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
             del inputs_0, inputs_1, labels_0, labels_1, rand_vector
@@ -90,7 +93,7 @@ class ShadesRunner():
             labels_1 = F.one_hot(labels_1, num_classes=self.num_class)
 
             # Create inputs & labels
-            rand_vector = torch.rand((batchSize, 1), device=self.device)
+            rand_vector = my_Rand((batchSize, 1), device=self.device)
             inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
             labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
             del inputs_0, inputs_1, labels_0, labels_1, rand_vector
@@ -128,7 +131,7 @@ class ShadesRunner():
                 labels_1 = F.one_hot(targets_1, num_classes=self.num_class)
 
                 # Create inputs & labels
-                rand_vector = torch.rand((batchSize, 1), device=self.device)
+                rand_vector = my_Rand((batchSize, 1), device=self.device)
                 inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
                 labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
                 del inputs_0, inputs_1, labels_0, labels_1, rand_vector
@@ -168,7 +171,7 @@ class ShadesRunner():
                 labels_1 = F.one_hot(targets_1, num_classes=self.num_class)
 
                 # Create inputs & labels
-                rand_vector = torch.rand((batchSize, 1), device=self.device)
+                rand_vector = my_Rand((batchSize, 1), device=self.device)
                 inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
                 labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
                 del inputs_0, inputs_1, labels_0, labels_1, rand_vector

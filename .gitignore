@@ -130,3 +130,5 @@ dmypy.json
 *.pth
 .vscode
 de_csv/*
+figs/*.png
+runs/*

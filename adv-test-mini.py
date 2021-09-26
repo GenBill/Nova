@@ -62,7 +62,7 @@ def onlyeval(checkpoint_list, batch_size, num_class):
 
         optimizer = torch.optim.SGD(model.parameters(), lr=1e-2)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 150], gamma=0.1)
-        attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
+        attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
         # attacker = L2PGD(model, epsilon=1, step=0.1, iterations=10, random_start=True)
 
         criterion = nn.CrossEntropyLoss()

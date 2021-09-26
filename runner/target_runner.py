@@ -8,8 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
-# from torch import rand as my_Rand
-from runner.my_Rand import my_Rand
+from runner.my_Rand import rain_Rand, tower_Rand
 
 # from advertorch.attacks import LinfPGDAttack
 
@@ -27,13 +26,13 @@ def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.5):
     adversary.targeted = True
 
     ## Reach Tower
-    adv_inputs = 2*adversary.perturb(inputs, target).detach() - inputs
+    # adv_inputs = 2*adversary.perturb(inputs, target).detach() - inputs
 
     ## Reach Plain
-    # adv_inputs = adversary.perturb(inputs, target).detach()
+    adv_inputs = adversary.perturb(inputs, target).detach()
     
     ## Rand Gamma
-    rand_lambda = my_Rand((true_target.shape[0],1,1,1), device=device)
+    rand_lambda = tower_Rand((true_target.shape[0],1,1,1), device=device)
     ret_inputs = rand_lambda*adv_inputs + (1-rand_lambda)*inputs
     
     rand_lambda.squeeze_(3).squeeze_(2)
@@ -88,7 +87,7 @@ class TargetRunner():
             labels_1 = F.one_hot(labels_1, num_classes=self.num_class)
 
             # Create inputs & labels
-            rand_vector = my_Rand((batchSize, 1), device=self.device)
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
             inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
             labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
             del inputs_0, inputs_1, labels_0, labels_1, rand_vector
@@ -153,7 +152,7 @@ class TargetRunner():
             inputs_1, labels_1 = target_attack(self.attacker, inputs_1, labels_1, self.num_class, self.device, self.gamma)
 
             # Create inputs & labels
-            rand_vector = my_Rand((batchSize, 1), device=self.device)
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
             inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
             labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
             del inputs_0, inputs_1, labels_0, labels_1, rand_vector
@@ -189,7 +188,7 @@ class TargetRunner():
             inputs_2, labels_2 = target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
 
             # Create inputs & labels
-            rand_vector = my_Rand((batchSize, 1), device=self.device)
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
             inputs = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_2 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
             labels = labels_1 * rand_vector + labels_2 * (1-rand_vector)
             del inputs_0, inputs_1, inputs_2, labels_0, labels_1, labels_2, rand_vector

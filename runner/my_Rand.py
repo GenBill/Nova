@@ -1,8 +1,9 @@
 import torch
 
 def rain_Rand(size, device):
+    # /3 -> z = 1.5 -> 6.68%
     rand_n = torch.randn(size, device=device)
-    rand_n = torch.abs(rand_n/4)
+    rand_n = torch.abs(rand_n/3)
     rand_u = torch.rand(size, device=device)
     ret = (rand_n<=1).int()*rand_n + (rand_n>1).int()*rand_u
     return ret

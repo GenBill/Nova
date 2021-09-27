@@ -122,7 +122,7 @@ if __name__ == '__main__':
         # './checkpoint/clean-final-cifar10.pth',
         # './checkpoint/adv-final-cifar10.pth',
         # './towerain/multar-0-cifar10.pth',
-        './towerain/target-0-cifar10.pth',
+        # './towerain/target-0-cifar10.pth',
         # './towerain/target-10-cifar10.pth',
         './checkpoint/multar-0-cifar10.pth',
         './checkpoint/multar-10-cifar10.pth',

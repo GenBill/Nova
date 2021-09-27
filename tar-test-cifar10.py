@@ -79,11 +79,11 @@ def onlyeval(checkpoint_list, batch_size, num_class):
             print("Eval (Adver) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
         # Add Test : Adv Second
-        avg_loss, avg_true = runner.adv_eval_2("Only Test")
-        avg_loss = collect(avg_loss, runner.device)
-        avg_true = collect(avg_true, runner.device)
-        if torch.distributed.get_rank() == 0:
-            print("Eval_2 (Adver) , 1st-True {:.6f}, True. {:.6f}".format(avg_loss, avg_true))
+        # avg_loss, avg_true = runner.adv_eval_2("Only Test")
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_true = collect(avg_true, runner.device)
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval_2 (Adver) , 1st-True {:.6f}, True. {:.6f}".format(avg_loss, avg_true))
 
         # Test on Clean First
         avg_loss, acc_sum, acc_count = runner.clean_eval("Only Test")
@@ -93,15 +93,15 @@ def onlyeval(checkpoint_list, batch_size, num_class):
             print("Eval (Clean) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
         # Add Test : Clean Second
-        avg_loss, avg_true = runner.clean_eval_2("Only Test")
-        avg_loss = collect(avg_loss, runner.device)
-        avg_true = collect(avg_true, runner.device)
-        if torch.distributed.get_rank() == 0:
-            print("Eval_2 (Clean) , 1st-True {:.6f}, True. {:.6f}".format(avg_loss, avg_true))
+        # avg_loss, avg_true = runner.clean_eval_2("Only Test")
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_true = collect(avg_true, runner.device)
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval_2 (Clean) , 1st-True {:.6f}, True. {:.6f}".format(avg_loss, avg_true))
         
-        this_lipz = std_lipz(model, test_loader_one, device, rand_times=64, eps=8/255)
-        if torch.distributed.get_rank() == 0:
-            print("Locally Lipz : {:.6f}".format(this_lipz))
+        # this_lipz = std_lipz(model, test_loader_one, device, rand_times=64, eps=8/255)
+        # if torch.distributed.get_rank() == 0:
+        #     print("Locally Lipz : {:.6f}".format(this_lipz))
             
         this_lipz = adv_lipz(model, test_loader, attacker, device)
         if torch.distributed.get_rank() == 0:
@@ -116,11 +116,12 @@ if __name__ == '__main__':
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    gamma_list = [0, 0.1, 0.2, 0.3]
+    gamma_list = [0, 0.1, ]
     checkpoint_list = []
+    
     for gamma in gamma_list:
         gamma_name = str(int(gamma*100))
-        checkpoint = './checkpoint/tarsha-' + gamma_name + '-cifar10.pth'
+        checkpoint = './checkpoint/multar-' + gamma_name + '-cifar10.pth'
         checkpoint_list.append(checkpoint)
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

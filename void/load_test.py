@@ -124,7 +124,7 @@ if __name__ == '__main__':
         # './towerain/multar-0-cifar10.pth',
         # './towerain/target-0-cifar10.pth',
         # './towerain/target-10-cifar10.pth',
-        './checkpoint/multar-0-cifar10.pth',
+        './checkpoint/multar-test0-cifar10.pth',
         # './checkpoint/multar-10-cifar10.pth',
     ]
 

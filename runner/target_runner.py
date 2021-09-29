@@ -8,16 +8,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 
+# from advertorch.attacks import LinfPGDAttack
+
 from runner.my_Rand import rain_Rand as rain_Rand
 from runner.my_Rand import tower_Rand as tower_Rand
 
-from runner.my_Rand import irain_Rand as rain_Rand
-from runner.my_Rand import itower_Rand as tower_Rand
+# from runner.my_Rand import irain_Rand as rain_Rand
+# from runner.my_Rand import itower_Rand as tower_Rand
 
-from runner.my_Rand import brain_Rand as rain_Rand
-from runner.my_Rand import btower_Rand as tower_Rand
+# from runner.my_Rand import brain_Rand as rain_Rand
+# from runner.my_Rand import btower_Rand as tower_Rand
 
-# from advertorch.attacks import LinfPGDAttack
 
 def soft_loss(pred, soft_targets):
     return torch.sqrt(nn.MSELoss()(pred, soft_targets))

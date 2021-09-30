@@ -93,8 +93,8 @@ class WideResNet(nn.Module):
 
 
 # resnet18_small(n_class=train_dataset.class_num, mean=mean, std=std)
-def wideresnet18(n_class=10, mean=None, std=None):
-    return WideResNet(depth=18, num_classes=n_class)
+# def wideresnet18(n_class=10, mean=None, std=None):
+#     return WideResNet(depth=18, num_classes=n_class)
 
 def wideresnet34(n_class=10, mean=None, std=None):
     return WideResNet(depth=34, num_classes=n_class)

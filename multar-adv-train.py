@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar10
 
-from model import resnet18_small
+from model import resnet18_small# wideresnet34 as 
 from runner import TargetRunner
 from utils import get_device_id, Quick_MSELoss
 
@@ -52,6 +52,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     model = resnet18_small(n_class=train_dataset.class_num, mean=mean, std=std).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
+    # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)
@@ -69,12 +70,12 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
-        torch.save(model.cpu(), './checkpoint/multar-'+ gamma_name +'-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/multar-wide'+ gamma_name +'-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 1e-1
-    epochs = 400
+    epochs = 2
     batch_size = 128
     manualSeed = 517    # 2077
     gamma = 0.

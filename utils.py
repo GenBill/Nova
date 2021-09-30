@@ -41,3 +41,24 @@ class Quick_MSELoss(nn.Module):
     def forward(self, input, label):
         target = F.one_hot(label, num_classes=input.shape[-1])
         return torch.sqrt(F.mse_loss(input, target, reduction=self.reduction))
+    
+class softCrossEntropy(nn.Module):
+    def __init__(self, reduce=True):
+        super(softCrossEntropy, self).__init__()
+        self.reduce = reduce
+        return
+
+    def forward(self, inputs, targets):
+        """
+        :param inputs: predictions
+        :param targets: target labels in vector form
+        :return: loss
+        """
+        log_likelihood = -F.log_softmax(inputs, dim=1)
+        sample_num, class_num = targets.shape
+        if self.reduce:
+            loss = torch.sum(torch.mul(log_likelihood, targets)) / sample_num
+        else:
+            loss = torch.sum(torch.mul(log_likelihood, targets), 1)
+
+        return loss

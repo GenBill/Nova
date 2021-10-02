@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar10
 
-from model import resnet18_small# wideresnet34 as 
+from model import wideresnet34 as resnet18_small    # wideresnet34 as 
 from runner import TargetRunner
 from utils import get_device_id, Quick_MSELoss
 
@@ -51,8 +51,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
     std = [1., 1., 1.]
 
     model = resnet18_small(n_class=train_dataset.class_num, mean=mean, std=std).to(device)
-    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
-    # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
+    # model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
+    model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)

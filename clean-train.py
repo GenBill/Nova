@@ -11,7 +11,7 @@ from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar10
 
 from model import wideresnet34 as resnet18_small
-from runner import DistRunner
+from runner import LinfRunner as DistRunner
 from utils import get_device_id
 
 from advertorch.attacks import LinfPGDAttack

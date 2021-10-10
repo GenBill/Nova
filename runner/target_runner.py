@@ -6,12 +6,13 @@ from utils import collect
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from tensorboardX import SummaryWriter
 import copy
 
 # from advertorch.attacks import LinfPGDAttack
 
 # from runner.my_Rand import rain_Rand as rain_Rand
-from runner.my_Rand import tower_Rand as tower_Rand
+from runner.my_Rand import softower_Rand as tower_Rand
 
 # from runner.my_Rand import irain_Rand as rain_Rand
 # from runner.my_Rand import itower_Rand as tower_Rand
@@ -77,6 +78,33 @@ class TargetRunner():
 
         self.desc = lambda status, progress: f"{status}: {progress}"
         
+    def add_writer(self, writer, epoch_idx):
+        # clean test
+        avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            writer.add_scalar("clean_Acc", avg_acc, epoch_idx)
+            writer.add_scalar("clean_Loss", avg_loss, epoch_idx)
+
+        # adv test
+        avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            writer.add_scalar("adv_Acc", avg_acc, epoch_idx)
+            writer.add_scalar("adv_Loss", avg_loss, epoch_idx)
+        
+        # Lipz test
+        std_lipz = self.std_lipz_eval()
+        adv_lipz = self.adv_lipz_eval()
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Lipz) {}/{}, std Lipz. {:.6f}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, std_lipz, adv_lipz))
+            writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
+            writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
+
     def clean_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
@@ -263,6 +291,69 @@ class TargetRunner():
         pbar.close()
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
+    
+    def std_lipz_eval(self, rand_times=256, eps=1.0/255):
+        self.model.eval()
+        with torch.no_grad():
+            all_Lipz = 0
+            sample_size = len(self.test_loader.dataset)
+
+            for batch_num, (example_0, _) in enumerate(self.test_loader):
+                rand_shape = list(example_0.shape)
+                example_0 = example_0.to(self.device)
+                pred_0 = self.model(example_0)
+
+                Local_Lipz = torch.zeros(rand_shape[0]).to(self.device)
+
+                # while True:
+                for i in range(rand_times):
+                    rand_vector = eps * (2*torch.rand(rand_shape)-1).to(self.device)
+                    pred_1 = self.model(example_0 + rand_vector)
+                
+                    # diff : rand_times * class_num
+                    # rand_vector : rand_times * 3 * 28 * 28
+                    diff = pred_1 - pred_0
+                    leng_diff = torch.sum(torch.abs(diff), dim=1)
+                    rand_vector = torch.abs(rand_vector).view(rand_shape[0], -1)
+                    leng_vector = torch.max(rand_vector, dim=1).values
+                
+                    # Count diff / rand_vector
+                    Ret = leng_diff / leng_vector
+                    Local_Lipz = Ret * (Ret>Local_Lipz) + Local_Lipz * (Ret<=Local_Lipz)
+                
+                all_Lipz += torch.sum(Local_Lipz) / sample_size
+
+        return all_Lipz
+
+    def adv_lipz_eval(self):
+        self.model.eval()
+        all_Lipz = 0
+        sample_size = len(self.test_loader.dataset)
+
+        for example_0, labels in self.test_loader:
+            labels = labels.to(self.device)
+            example_0 = example_0.to(self.device)
+            example_1 = untarget_attack(self.attacker, example_0, labels)
+
+            # do a forward pass on the example
+            pred_0 = self.model(example_0)
+            pred_1 = self.model(example_1)
+            
+            diff_pred = pred_1 - pred_0
+            leng_diff_pred = torch.sum(torch.abs(diff_pred), dim=1)
+
+            diff_input = example_1 - example_0
+            leng_diff_input = torch.max(diff_input, dim=3).values
+            leng_diff_input = torch.max(leng_diff_input, dim=2).values
+            leng_diff_input = torch.max(leng_diff_input, dim=1).values
+            
+            # Count diff / rand_vector
+            Ret = leng_diff_pred / leng_diff_input
+            Local_Lipz = torch.sum(Ret, dim=0).item()
+            
+            all_Lipz += Local_Lipz / sample_size
+
+        return all_Lipz
 
     def train(self, adv=True):
         (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
@@ -352,20 +443,20 @@ class TargetRunner():
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     
-    def multar_train(self, adv=True):
-        (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
-        avg_loss = collect(avg_loss, self.device)
-        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+    def multar_train(self, writer, adv=True):
+        # (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
-        avg_loss = collect(avg_loss, self.device)
-        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
         
-
+        self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):
             if adv:
                 avg_loss = self.multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
@@ -378,9 +469,13 @@ class TargetRunner():
                 else:
                     tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
             
+            ## Add a Writer
+            self.add_writer(writer, epoch_idx+1)
+            
             if self.scheduler is not None:
                 self.scheduler.step()
 
+            '''
             if epoch_idx % self.eval_interval == (self.eval_interval-1):
                 avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
                 avg_loss = collect(avg_loss, self.device)
@@ -393,5 +488,7 @@ class TargetRunner():
                 avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
                 if torch.distributed.get_rank() == 0:
                     tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            
+            '''
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))

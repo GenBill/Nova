@@ -6,3 +6,7 @@ CUDA_VISIBLE_DEVICES=2 nohup python -m torch.distributed.launch --nproc_per_node
 CUDA_VISIBLE_DEVICES=3 nohup python -m torch.distributed.launch --nproc_per_node=1 --master_port 21207 target-adv-train.py >/dev/null 2>&1 &
 
 
+python -m torch.distributed.launch --nproc_per_node=8 --master_port 41208 multar-adv-train.py
+python -m torch.distributed.launch --nproc_per_node=8 --master_port 61208 multar-adv-train.py
+
+

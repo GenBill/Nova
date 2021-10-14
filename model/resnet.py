@@ -33,14 +33,15 @@ class resnet18(nn.Module):
         super(resnet18, self).__init__()
         self.n_class = n_class
 
-        self.norm = Normalization(mean, std)
+        # self.norm = Normalization(mean, std)
         self.encoder = nn.Sequential(*list(models.resnet18(pretrained=False).children())[:-1]+[nn.Flatten()])
         self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=True)
         self.encoder.apply(_init_weight)
     
     def forward(self, x):
-        x_norm = self.norm(x)
-        f = self.encoder(x_norm)
+        # x_norm = self.norm(x)
+        # f = self.encoder(x_norm)
+        f = self.encoder(x)
         y = self.classifier(f)
 
         return y
@@ -50,7 +51,7 @@ class resnet18_small(nn.Module):
         super(resnet18_small, self).__init__()
         self.n_class = n_class
 
-        self.norm = Normalization(mean, std)
+        # self.norm = Normalization(mean, std)
         self.encoder = nn.Sequential(*list(models.resnet18(pretrained=False).children())[:-1]+[nn.Flatten()])
         self.encoder[0] = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
         self.encoder[3] = nn.Identity()
@@ -58,8 +59,9 @@ class resnet18_small(nn.Module):
         self.encoder.apply(_init_weight)
     
     def forward(self, x):
-        x_norm = self.norm(x)
-        f = self.encoder(x_norm)
+        # x_norm = self.norm(x)
+        # f = self.encoder(x_norm)
+        f = self.encoder(x)
         y = self.classifier(f)
 
         return y

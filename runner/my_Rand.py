@@ -24,6 +24,11 @@ def tower_Rand(size, device):
     rand_u = torch.rand(size, device=device) + torch.rand(size, device=device)
     return torch.abs(rand_u-1)
 
+def longtower_Rand(size, device):
+    # P0 = max，P1 = min
+    rand_u = torch.rand(size, device=device) + torch.rand(size, device=device)
+    return torch.abs(rand_u-1)*1.2
+
 def softower_Rand(size, device):
     # P0 = max，P1 = min
     rand_u = torch.rand(size, device=device) + torch.rand(size, device=device)

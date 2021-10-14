@@ -12,7 +12,7 @@ import copy
 # from advertorch.attacks import LinfPGDAttack
 
 # from runner.my_Rand import rain_Rand as rain_Rand
-from runner.my_Rand import softower_Rand as tower_Rand
+from runner.my_Rand import btower_Rand as tower_Rand
 
 # from runner.my_Rand import irain_Rand as rain_Rand
 # from runner.my_Rand import itower_Rand as tower_Rand
@@ -98,11 +98,11 @@ class TargetRunner():
             writer.add_scalar("adv_Loss", avg_loss, epoch_idx)
         
         # Lipz test
-        std_lipz = self.std_lipz_eval()
+        # std_lipz = self.std_lipz_eval()
         adv_lipz = self.adv_lipz_eval()
         if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Lipz) {}/{}, std Lipz. {:.6f}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, std_lipz, adv_lipz))
-            writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
+            tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
+            # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
             writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
 
     def clean_step(self, progress):

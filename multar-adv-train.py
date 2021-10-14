@@ -39,24 +39,22 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=12, pin_memory=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
 
     shadow_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, seed=1)
-    shadow_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=shadow_sampler, num_workers=12, pin_memory=False)
+    shadow_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=shadow_sampler, num_workers=4, pin_memory=False)
 
     test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=12, pin_memory=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
-    mean = [0., 0., 0.]
-    std = [1., 1., 1.]
-
-    model = resnet18_small(n_class=train_dataset.class_num, mean=mean, std=std).to(device)
-    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
+    model = resnet18_small(n_class=train_dataset.class_num).to(device)
+    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
+        # find_unused_parameters = True, broadcast_buffers = False)
     # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 240, 360, 400], gamma=0.1)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -71,17 +69,17 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
-        torch.save(model.cpu(), './checkpoint/multar-'+ gamma_name +'-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-'+ gamma_name +'-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 1e-1
     epochs = 400
     batch_size = 128
-    manualSeed = 517    # 2077
+    manualSeed = 2077    # 2077
     gamma = 0.
 
-    writer = SummaryWriter('./runs/curve')
+    writer = SummaryWriter('./runs/curve_plain10')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

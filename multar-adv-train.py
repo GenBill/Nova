@@ -30,11 +30,13 @@ def run(lr, epochs, batch_size, gamma=0.5):
     train_transforms = T.Compose([
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
-        T.ToTensor()
+        T.ToTensor(),
+        T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
     test_transforms = T.Compose([
         T.Resize((32, 32)),
-        T.ToTensor()
+        T.ToTensor(),
+        T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
 
     train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
@@ -71,7 +73,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
-        torch.save(model.cpu(), './checkpoint/multar-plain-'+ gamma_name +'-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
+        # torch.save(model.cpu(), './checkpoint/multar-softower125-'+ gamma_name +'-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':
@@ -81,7 +84,8 @@ if __name__ == '__main__':
     manualSeed = 2077    # 2077
     gamma = 0.
 
-    writer = SummaryWriter('./runs/curve_plain10')
+    writer = SummaryWriter('./runs/curve_targetmix')
+    # writer = SummaryWriter('./runs/curve_softower125')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

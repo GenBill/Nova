@@ -12,7 +12,8 @@ import copy
 # from advertorch.attacks import LinfPGDAttack
 
 # from runner.my_Rand import rain_Rand as rain_Rand
-from runner.my_Rand import btower_Rand as tower_Rand
+from runner.my_Rand import noRand_ones as tower_Rand
+# from runner.my_Rand import softower_Rand as tower_Rand
 
 # from runner.my_Rand import irain_Rand as rain_Rand
 # from runner.my_Rand import itower_Rand as tower_Rand
@@ -456,7 +457,8 @@ class TargetRunner():
         # if torch.distributed.get_rank() == 0:
         #     tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
         
-        self.add_writer(writer, 0)
+        ## Add a Writer
+        # self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):
             if adv:
                 avg_loss = self.multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
@@ -470,7 +472,7 @@ class TargetRunner():
                     tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
             
             ## Add a Writer
-            self.add_writer(writer, epoch_idx+1)
+            # self.add_writer(writer, epoch_idx+1)
             
             if self.scheduler is not None:
                 self.scheduler.step()

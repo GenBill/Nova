@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar10
 
-from model import wideresnet34 as resnet18_small
+from model import resnet18_small # wideresnet34 as resnet18_small
 from runner import TargetRunner
 from utils import get_device_id, Quick_MSELoss
 
@@ -29,11 +29,13 @@ def run(lr, epochs, batch_size, gamma=0.5):
     train_transforms = T.Compose([
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
-        T.ToTensor()
+        T.ToTensor(),
+        T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
     test_transforms = T.Compose([
         T.Resize((32, 32)),
-        T.ToTensor()
+        T.ToTensor(),
+        T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
 
     train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
@@ -51,11 +53,11 @@ def run(lr, epochs, batch_size, gamma=0.5):
     std = [1., 1., 1.]
 
     model = resnet18_small(n_class=train_dataset.class_num, mean=mean, std=std).to(device)
-    model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
-    # model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
+    # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
+    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 240, 360], gamma=0.1)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -70,7 +72,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
-        torch.save(model.cpu(), './checkpoint/target-' + gamma_name + '-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/target-pgd' + gamma_name + '-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':

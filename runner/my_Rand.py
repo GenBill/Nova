@@ -19,10 +19,19 @@ def rain_Rand(size, device):
     ret = (flag<=1).int()*rand_n + (flag>1).int()*rand_u
     return ret
 
+def noRand_ones(size, device):
+    # P0 = max，P1 = min
+    return torch.ones(size, device=device)
+
 def tower_Rand(size, device):
     # P0 = max，P1 = min
     rand_u = torch.rand(size, device=device) + torch.rand(size, device=device)
     return torch.abs(rand_u-1)
+
+def doubletower_Rand(size, device):
+    # P0 = max，P1 = min
+    rand_u = 2*torch.rand(size, device=device)
+    return rand_u
 
 def longtower_Rand(size, device):
     # P0 = max，P1 = min
@@ -34,7 +43,8 @@ def softower_Rand(size, device):
     rand_u = torch.rand(size, device=device) + torch.rand(size, device=device)
     rand_u2 = torch.rand(size, device=device)
     rand_u3 = torch.rand(size, device=device)
-    ret = torch.abs(rand_u-1)*(rand_u2>0.25) + rand_u3*(rand_u2<=0.25)
+    # ret = torch.abs(rand_u-1)*(rand_u2>0.25) + rand_u3*(rand_u2<=0.25)
+    ret = torch.abs(rand_u-1)*(rand_u2>0.125) + rand_u3*(rand_u2<=0.125)
     return ret
 
 ## inverse - Rand

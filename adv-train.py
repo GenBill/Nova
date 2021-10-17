@@ -30,12 +30,10 @@ def run(lr, epochs, batch_size):
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
-        T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
     test_transforms = T.Compose([
         T.Resize((32, 32)),
         T.ToTensor(),
-        T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
 
     train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
@@ -58,7 +56,7 @@ def run(lr, epochs, batch_size):
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
-        rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+        rand_init=True, clip_min=clip_min, clip_max=clip_max, targeted=False, 
     )
 
     criterion = nn.CrossEntropyLoss()

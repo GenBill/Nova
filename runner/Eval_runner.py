@@ -1,6 +1,9 @@
-from tqdm.auto import tqdm
-from utils import AverageMeter
 import torch
+import torch.nn as nn
+
+from tqdm.auto import tqdm
+
+from utils import AverageMeter
 from utils import collect
 
 from advertorch.attacks import FGSM as atk_FGSM

@@ -110,7 +110,7 @@ class EvalRunner():
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = atk_CW(self.model, self.num_classes, binary_search_steps=nb_iter)
+        attacker = atk_CW(self.model, self.num_classes, max_iterations=nb_iter)
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):

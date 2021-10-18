@@ -1,4 +1,5 @@
 from .runner import DistRunner
+from .Eval_runner import EvalRunner
 from .Linf_runner import LinfRunner
 from .ada_runner import AdaRunner
 from .shades_runner import ShadesRunner

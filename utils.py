@@ -35,11 +35,13 @@ def get_device_id():
     return args.local_rank
 
 class Quick_MSELoss(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, n_class, reduction='mean'):
         super(Quick_MSELoss, self).__init__()
+        self.n_class = n_class
+        self.reduction = reduction
 
     def forward(self, input, label):
-        target = F.one_hot(label, num_classes=input.shape[-1])
+        target = F.one_hot(label, num_classes=self.n_class).float()
         return torch.sqrt(F.mse_loss(input, target, reduction=self.reduction))
     
 class softCrossEntropy(nn.Module):

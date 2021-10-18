@@ -13,4 +13,6 @@ python -m torch.distributed.launch --nproc_per_node=8 --master_port 21205 adv-tr
 python -m torch.distributed.launch --nproc_per_node=8 --master_port 21226 multar-adv-train.py
 python -m torch.distributed.launch --nproc_per_node=8 --master_port 21207 target-adv-train.py
 
+CUDA_VISIBLE_DEVICES=5 python -m torch.distributed.launch --nproc_per_node=1 --master_port 21208 adv-train-MSE.py
+CUDA_VISIBLE_DEVICES=5 python -m torch.distributed.launch --nproc_per_node=1 --master_port 21207 clean-train-MSE.py
 

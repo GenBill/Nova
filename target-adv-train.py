@@ -62,7 +62,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
-        rand_init=True, clip_min=0, clip_max=1, targeted=False, 
+        rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
     criterion = nn.CrossEntropyLoss()

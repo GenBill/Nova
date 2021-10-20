@@ -30,7 +30,36 @@ def soft_loss(pred, soft_targets):
 #     logsoftmax = nn.LogSoftmax(dim=1)
 #     return torch.mean(torch.sum(-soft_targets * logsoftmax(pred), dim=1))
 
-def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.5):
+def plain_target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
+    target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)
+    # Ensure target != true_target
+    target += (target >= true_target).int()
+    adversary.targeted = True
+
+    ## Reach Plain
+    adv_inputs = adversary.perturb(inputs, target).detach()
+    ret_target = F.one_hot(true_target, num_class).to(device)
+    
+    return adv_inputs, ret_target
+
+def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
+    target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)
+    # Ensure target != true_target
+    target += (target >= true_target).int()
+    adversary.targeted = True
+
+    ## Reach Plain
+    adv_inputs = adversary.perturb(inputs, target).detach()
+    
+    ## Rand Gamma
+    rand_lambda = tower_Rand((true_target.shape[0],1,1,1), device=device)
+    ret_inputs = rand_lambda*adv_inputs + (1-rand_lambda)*inputs
+    ret_target = F.one_hot(true_target, num_class).float().to(device)
+    
+    return ret_inputs, ret_target
+
+'''
+def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
     target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)
     # Ensure target != true_target
     target += (target >= true_target).int()
@@ -55,6 +84,7 @@ def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.5):
     # ret_target = gamma*F.one_hot(target, num_class).to(device) + (1-gamma)*F.one_hot(true_target, num_class).to(device)
     
     return ret_inputs, ret_target
+'''
 
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False

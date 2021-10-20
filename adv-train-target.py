@@ -63,7 +63,7 @@ def run(lr, epochs, batch_size):
 
     criterion = nn.CrossEntropyLoss()
 
-    runner = DistRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=10)
+    runner = DistRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=train_dataset.class_num)
     runner.train_target(adv=True)
 
     if torch.distributed.get_rank() == 0:

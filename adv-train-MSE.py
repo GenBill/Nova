@@ -54,7 +54,7 @@ def run(lr, epochs, batch_size):
     # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 240, 360, 400], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -73,7 +73,7 @@ def run(lr, epochs, batch_size):
 
 if __name__ == '__main__':
     lr = 1e-1
-    epochs = 400
+    epochs = 360
     batch_size = 128
     manualSeed = 517    # 2077
 

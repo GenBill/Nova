@@ -105,12 +105,12 @@ class EvalRunner():
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
-    def CW_eval(self, progress, nb_iter=20):
+    def CW_eval(self, progress, search_steps=4, nb_iter=20):
         self.model.eval()
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = atk_CW(self.model, self.num_classes, max_iterations=nb_iter)
+        attacker = atk_CW(self.model, self.num_classes, binary_search_steps=search_steps, max_iterations=nb_iter)
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):
@@ -132,7 +132,7 @@ class EvalRunner():
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
-    def Lipz_eval(self, progress, nb_iter=100):
+    def Lipz_eval(self, nb_iter=100):
         self.model.eval()
         attacker = atk_PGD(
             self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 

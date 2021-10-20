@@ -12,8 +12,8 @@ import copy
 # from advertorch.attacks import LinfPGDAttack
 
 # from runner.my_Rand import rain_Rand as rain_Rand
-from runner.my_Rand import noRand_ones as tower_Rand
-# from runner.my_Rand import softower_Rand as tower_Rand
+# from runner.my_Rand import noRand_ones as tower_Rand
+from runner.my_Rand import softower_Rand as tower_Rand
 
 # from runner.my_Rand import irain_Rand as rain_Rand
 # from runner.my_Rand import itower_Rand as tower_Rand
@@ -23,8 +23,8 @@ from runner.my_Rand import brain_Rand as rain_Rand
 
 
 def soft_loss(pred, soft_targets):
-    softmax_pred = nn.LogSoftmax(dim=1)(pred)
-    return torch.sqrt(nn.MSELoss()(softmax_pred, soft_targets))
+    # softmax_pred = nn.LogSoftmax(dim=1)(pred)
+    return torch.sqrt(nn.MSELoss()(pred, soft_targets))
 
 # def soft_loss(pred, soft_targets):
 #     logsoftmax = nn.LogSoftmax(dim=1)

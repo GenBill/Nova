@@ -61,7 +61,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 240, 360, 400], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -76,19 +76,19 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
-        torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
-        # torch.save(model.cpu(), './checkpoint/multar-softower125-'+ gamma_name +'-cifar10.pth')
+        # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/multar-softower25-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 1e-1
-    epochs = 400
+    epochs = 360
     batch_size = 128
     manualSeed = 2077    # 2077
     gamma = 0.
 
-    writer = SummaryWriter('./runs/curve_targetmix')
-    # writer = SummaryWriter('./runs/curve_softower125')
+    # writer = SummaryWriter('./runs/curve_targetmix')
+    writer = SummaryWriter('./runs/curve_soft25')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

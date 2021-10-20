@@ -75,7 +75,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
-        torch.save(model.cpu(), './checkpoint/Vertexmix-soft25' + gamma_name + '-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/Vertexmix-CE-soft25' + gamma_name + '-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':

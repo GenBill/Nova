@@ -10,7 +10,7 @@ def target_attack(adversary, inputs, true_target, num_class, device):
     
     adversary.targeted = True
     adv_inputs = adversary.perturb(inputs, target).detach()
-    return adv_inputs, true_target
+    return adv_inputs
 
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
@@ -60,7 +60,7 @@ class LinfRunner():
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
-            data = untarget_attack(self.attacker, data, target, self.num_class, self.device)
+            data = untarget_attack(self.attacker, data, target)
 
             output = self.model(data)
             loss = self.criterion(output, target)
@@ -82,7 +82,7 @@ class LinfRunner():
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
-            data = target_attack(self.attacker, data, target)
+            data = target_attack(self.attacker, data, target, self.num_class, self.device)
 
             output = self.model(data)
             loss = self.criterion(output, target)

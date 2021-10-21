@@ -8,7 +8,7 @@ from torchvision import transforms as T
 from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
-from dataset import Cifar10, Cifar10
+from dataset import Cifar100, Cifar100
 
 from model import resnet18_small as resnet18_small    # wideresnet34 as resnet18_small
 from runner import LinfRunner as DistRunner
@@ -41,11 +41,11 @@ def run(lr, epochs, batch_size):
     ])
     # clip_min, clip_max = -1.9887, 2.1265
 
-    train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
 
-    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
+    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
@@ -71,18 +71,20 @@ def run(lr, epochs, batch_size):
     runner.train(adv=False)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.cpu(), './checkpoint/clean-final-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/clean-final-cifar100.pth')
         print('Save model.')
 
 
 if __name__ == '__main__':
-    lr = 1e-1
-    epochs = 360
-    batch_size = 128
-    manualSeed = 517    # 2077
 
-    random.seed(manualSeed)
-    torch.manual_seed(manualSeed)
+    print('Done!')
+    # lr = 1e-1
+    # epochs = 360
+    # batch_size = 128
+    # manualSeed = 517    # 2077
 
-    os.environ['DATAROOT'] = '~/Datasets/cifar10'
-    run(lr, epochs, batch_size)
+    # random.seed(manualSeed)
+    # torch.manual_seed(manualSeed)
+
+    # os.environ['DATAROOT'] = '~/Datasets/cifar100'
+    # run(lr, epochs, batch_size)

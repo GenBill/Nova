@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar10
 
-from model import resnet18_small_prime as resnet18_small    # wideresnet34 as resnet18_small
+from model import resnet18_small as resnet18_small    # wideresnet34 as resnet18_small
 from runner import LinfRunner as DistRunner
 from utils import get_device_id, Quick_MSELoss
 

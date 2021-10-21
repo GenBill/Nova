@@ -77,7 +77,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
-        torch.save(model.cpu(), './checkpoint/multar-softower25-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/multar-isoftower50-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':
@@ -88,7 +88,7 @@ if __name__ == '__main__':
     gamma = 0.
 
     # writer = SummaryWriter('./runs/curve_targetmix')
-    writer = SummaryWriter('./runs/curve_soft25')
+    writer = SummaryWriter('./runs/void')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

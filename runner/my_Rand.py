@@ -43,9 +43,18 @@ def softower_Rand(size, device):
     rand_u = torch.rand(size, device=device) + torch.rand(size, device=device)
     rand_u2 = torch.rand(size, device=device)
     rand_u3 = torch.rand(size, device=device)
-    ret = torch.abs(rand_u-1)*(rand_u2>0.25) + rand_u3*(rand_u2<=0.25)
+    ret = torch.abs(rand_u-1)*(rand_u2>0.50) + rand_u3*(rand_u2<=0.50)
     # ret = torch.abs(rand_u-1)*(rand_u2>0.125) + rand_u3*(rand_u2<=0.125)
     return ret
+
+def isoftower_Rand(size, device):
+    # P0 = max，P1 = min
+    rand_u = torch.rand(size, device=device) + torch.rand(size, device=device)
+    rand_u2 = torch.rand(size, device=device)
+    rand_u3 = torch.rand(size, device=device)
+    ret = torch.abs(rand_u-1)*(rand_u2>0.50) + rand_u3*(rand_u2<=0.50)
+    # ret = torch.abs(rand_u-1)*(rand_u2>0.125) + rand_u3*(rand_u2<=0.125)
+    return 1-ret
 
 ## inverse - Rand
 def irain_Rand(size, device):

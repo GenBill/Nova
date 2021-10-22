@@ -89,19 +89,23 @@ class SVHN(Dataset):
         self.dataroot_param = dataroot
         self.dataroot = dataroot
         self.train = train
+        if train:
+            self.split = 'train'
+        else:
+            self.split = 'test'
 
         self.max_n_per_class = max_n_per_class
 
         self.transform = transform
 
-        self.data = datasets.SVHN(root=self.dataroot, split='train' , transform=self.transform , target_transform=self.transform , download=True)
+        self.data = datasets.SVHN(root=self.dataroot, split=self.split, transform=self.transform, download=True)
 
-        self.classes = self.data.classes
-        self.class_num = len(self.data.classes)
-        self.class_to_idx = self.data.class_to_idx
-        self.idx_to_class = {self.class_to_idx[cls]:cls for cls in self.class_to_idx}
+        # self.classes = self.data.classes
+        self.class_num = 10
+        # self.class_to_idx = self.data.class_to_idx
+        # self.idx_to_class = {self.class_to_idx[cls]:cls for cls in self.class_to_idx}
 
-        self.subset_mask = np.array(self.data.targets)
+        self.subset_mask = np.array(self.data.labels)
         for i in range(10):
             self.subset_mask[np.where(self.subset_mask == i)[0][self.max_n_per_class:]] = -1
         self.subset_indices = np.where(self.subset_mask != -1)[0]

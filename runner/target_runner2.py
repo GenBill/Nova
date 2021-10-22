@@ -131,11 +131,11 @@ class TargetRunner2():
         
         # Lipz test
         # std_lipz = self.std_lipz_eval()
-        adv_lipz = self.adv_lipz_eval()
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
-            # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
-            writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
+        # adv_lipz = self.adv_lipz_eval()
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
+        #     # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
+        #     writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
 
     def clean_step(self, progress):
         self.model.train()

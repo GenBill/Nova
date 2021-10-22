@@ -10,7 +10,7 @@ from torchvision import transforms as T
 
 
 class Cifar10(Dataset):
-    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=10000):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=6000):
         self.dataroot_param = dataroot
         self.dataroot = dataroot
         self.train = train
@@ -47,7 +47,7 @@ class Cifar10(Dataset):
         return repr
 
 class Cifar100(Dataset):
-    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=60000):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=600):
         self.dataroot_param = dataroot
         self.dataroot = dataroot
         self.train = train
@@ -82,6 +82,45 @@ class Cifar100(Dataset):
 \tClass num: {}
 \tData num: {}""".format(self.dataroot, 'Train' if self.train else 'Test', self.class_num, self.__len__())
         return repr
+
+
+class SVHN(Dataset):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=60000):
+        self.dataroot_param = dataroot
+        self.dataroot = dataroot
+        self.train = train
+
+        self.max_n_per_class = max_n_per_class
+
+        self.transform = transform
+
+        self.data = datasets.SVHN(root=self.dataroot, split='train' , transform=self.transform , target_transform=self.transform , download=True)
+
+        self.classes = self.data.classes
+        self.class_num = len(self.data.classes)
+        self.class_to_idx = self.data.class_to_idx
+        self.idx_to_class = {self.class_to_idx[cls]:cls for cls in self.class_to_idx}
+
+        self.subset_mask = np.array(self.data.targets)
+        for i in range(10):
+            self.subset_mask[np.where(self.subset_mask == i)[0][self.max_n_per_class:]] = -1
+        self.subset_indices = np.where(self.subset_mask != -1)[0]
+    
+    def __getitem__(self, idx):
+        idx_in_ori_data = self.subset_indices[idx]
+        return self.data.__getitem__(idx_in_ori_data)
+
+    def __len__(self):
+        return len(self.subset_indices)
+
+    def __repr__(self):
+        repr = """Cifar10 Dataset(subset):
+\tRoot location: {}
+\tSplit: {}
+\tClass num: {}
+\tData num: {}""".format(self.dataroot, 'Train' if self.train else 'Test', self.class_num, self.__len__())
+        return repr
+
 
 class ImageNet(Dataset):
     """ ImageNet dataset with subset and MAX #data-per-class settings.

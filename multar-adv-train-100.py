@@ -58,13 +58,17 @@ def run(lr, epochs, batch_size, gamma=0.5):
         # find_unused_parameters = True, broadcast_buffers = False)
     # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
+    checkpoint = torch.load('./checkpoint/multar-softower25-cifar100.pth', map_location=device)
+    model.load_state_dict(checkpoint.state_dict())
+
+    # optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=2e-4)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[20, 200, 300, 400], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200, 400, 600, 800, 1000], gamma=0.32)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=20, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
@@ -77,18 +81,18 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar100.pth')
-        torch.save(model.cpu(), './checkpoint/multar-softower50-cifar100.pth')
+        torch.save(model.cpu(), './checkpoint/multar-softower25-cifar100-2000.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 3  # 1e-1
-    epochs = 500
+    lr = 4e-3           # 4e-1
+    epochs = 1000
     batch_size = 128
-    manualSeed = 2077    # 2077
+    manualSeed = 2049   # 2077
     gamma = 0.
 
     # writer = SummaryWriter('./runs/curve_targetmix')
-    writer = SummaryWriter('./runs/curve_soft_50_100_600')
+    writer = SummaryWriter('./runs/curve_soft_25_100_2000')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

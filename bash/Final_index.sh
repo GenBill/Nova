@@ -19,7 +19,7 @@ python -m torch.distributed.launch --nproc_per_node=8 --master_port 21228 multar
 python -m torch.distributed.launch --nproc_per_node=8 --master_port 21208 adv-train-100.py
 python -m torch.distributed.launch --nproc_per_node=8 --master_port 21209 multar-adv-train-100.py
 
-python -m torch.distributed.launch --nproc_per_node=8 --master_port 21210 multar-adv-train-100.py
+python -m torch.distributed.launch --nproc_per_node=8 --master_port 31210 multar-adv-train-100.py
 
 # CUDA_VISIBLE_DEVICES=5,7 python -m torch.distributed.launch --nproc_per_node=2 --master_port 21208 adv-train-MSE.py
 # CUDA_VISIBLE_DEVICES=5,7 python -m torch.distributed.launch --nproc_per_node=2 --master_port 21207 clean-train-MSE.py

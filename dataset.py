@@ -8,6 +8,81 @@ from torch.utils.data import Dataset
 from torchvision import datasets
 from torchvision import transforms as T
 
+class MNIST(Dataset):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=6000):
+        self.dataroot_param = dataroot
+        self.dataroot = dataroot
+        self.train = train
+
+        self.max_n_per_class = max_n_per_class
+
+        self.transform = transform
+
+        self.data = datasets.MNIST(root=self.dataroot, train=train, transform=self.transform, download=True)
+
+        self.classes = self.data.classes
+        self.class_num = len(self.data.classes)
+        self.class_to_idx = self.data.class_to_idx
+        self.idx_to_class = {self.class_to_idx[cls]:cls for cls in self.class_to_idx}
+
+        self.subset_mask = np.array(self.data.targets)
+        for i in range(10):
+            self.subset_mask[np.where(self.subset_mask == i)[0][self.max_n_per_class:]] = -1
+        self.subset_indices = np.where(self.subset_mask != -1)[0]
+    
+    def __getitem__(self, idx):
+        return self.data.__getitem__(idx)
+        idx_in_ori_data = self.subset_indices[idx]
+        return self.data.__getitem__(idx_in_ori_data)
+
+    def __len__(self):
+        return len(self.subset_indices)
+
+    def __repr__(self):
+        repr = """MNIST Dataset(subset):
+\tRoot location: {}
+\tSplit: {}
+\tClass num: {}
+\tData num: {}""".format(self.dataroot, 'Train' if self.train else 'Test', self.class_num, self.__len__())
+        return repr
+
+class FashionMNIST(Dataset):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=6000):
+        self.dataroot_param = dataroot
+        self.dataroot = dataroot
+        self.train = train
+
+        self.max_n_per_class = max_n_per_class
+
+        self.transform = transform
+
+        self.data = datasets.FashionMNIST(root=self.dataroot, train=train, transform=self.transform, download=True)
+
+        self.classes = self.data.classes
+        self.class_num = len(self.data.classes)
+        self.class_to_idx = self.data.class_to_idx
+        self.idx_to_class = {self.class_to_idx[cls]:cls for cls in self.class_to_idx}
+
+        self.subset_mask = np.array(self.data.targets)
+        for i in range(10):
+            self.subset_mask[np.where(self.subset_mask == i)[0][self.max_n_per_class:]] = -1
+        self.subset_indices = np.where(self.subset_mask != -1)[0]
+    
+    def __getitem__(self, idx):
+        return self.data.__getitem__(idx)
+        idx_in_ori_data = self.subset_indices[idx]
+        return self.data.__getitem__(idx_in_ori_data)
+
+    def __len__(self):
+        return len(self.subset_indices)
+
+    def __repr__(self):
+        repr = """FashionMNIST Dataset(subset):
+\tRoot location: {}
+\tSplit: {}
+\tClass num: {}
+\tData num: {}""".format(self.dataroot, 'Train' if self.train else 'Test', self.class_num, self.__len__())
+        return repr
 
 class Cifar10(Dataset):
     def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=6000):
@@ -32,6 +107,7 @@ class Cifar10(Dataset):
         self.subset_indices = np.where(self.subset_mask != -1)[0]
     
     def __getitem__(self, idx):
+        return self.data.__getitem__(idx)
         idx_in_ori_data = self.subset_indices[idx]
         return self.data.__getitem__(idx_in_ori_data)
 
@@ -69,6 +145,7 @@ class Cifar100(Dataset):
         self.subset_indices = np.where(self.subset_mask != -1)[0]
     
     def __getitem__(self, idx):
+        return self.data.__getitem__(idx)
         idx_in_ori_data = self.subset_indices[idx]
         return self.data.__getitem__(idx_in_ori_data)
 
@@ -111,6 +188,7 @@ class SVHN(Dataset):
         self.subset_indices = np.where(self.subset_mask != -1)[0]
     
     def __getitem__(self, idx):
+        return self.data.__getitem__(idx)
         idx_in_ori_data = self.subset_indices[idx]
         return self.data.__getitem__(idx_in_ori_data)
 
@@ -131,7 +209,7 @@ class ImageNet(Dataset):
     If use default parameters, it will just return a dataset with all ImageNet data.
     Otherwise, it will return a subset of ImageNet dataset.
     """
-    def __init__(self, dataroot, transform=T.Compose([]), train=True, subset=1000, max_n_per_class=10000):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, subset=1000, max_n_per_class=1000):
         # Initial parameters
         self.dataroot_param = dataroot
         self.dataroot = os.path.join(dataroot, "ilsvrc2012")

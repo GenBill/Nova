@@ -13,7 +13,7 @@ import copy
 
 # from runner.my_Rand import rain_Rand as rain_Rand
 # from runner.my_Rand import noRand_ones as tower_Rand
-from runner.my_Rand import softower_Rand as tower_Rand
+from runner.my_Rand import btower_Rand as tower_Rand
 
 # from runner.my_Rand import irain_Rand as rain_Rand
 # from runner.my_Rand import itower_Rand as tower_Rand
@@ -21,6 +21,13 @@ from runner.my_Rand import softower_Rand as tower_Rand
 from runner.my_Rand import brain_Rand as rain_Rand
 # from runner.my_Rand import btower_Rand as tower_Rand
 
+
+def new_soft_loss(pred, soft_targets):
+    mse = nn.MSELoss()(pred, soft_targets)
+    if mse>1:
+        return torch.sqrt(mse)
+    else:
+        return 10*mse + torch.sqrt(mse)
 
 def soft_loss(pred, soft_targets):
     # softmax_pred = nn.LogSoftmax(dim=1)(pred)
@@ -489,7 +496,7 @@ class TargetRunner2():
         #     tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
         
         ## Add a Writer
-        self.add_writer(writer, 0)
+        # self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):
             if adv:
                 avg_loss = self.multar_adv_step("{}/{}".format(epoch_idx, self.epochs))

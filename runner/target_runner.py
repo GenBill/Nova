@@ -13,7 +13,7 @@ import copy
 
 # from runner.my_Rand import rain_Rand as rain_Rand
 # from runner.my_Rand import noRand_ones as tower_Rand
-from runner.my_Rand import isoftower_Rand as tower_Rand
+from runner.my_Rand import btower_Rand as tower_Rand
 
 # from runner.my_Rand import irain_Rand as rain_Rand
 # from runner.my_Rand import itower_Rand as tower_Rand
@@ -22,13 +22,13 @@ from runner.my_Rand import brain_Rand as rain_Rand
 # from runner.my_Rand import btower_Rand as tower_Rand
 
 
-def soft_loss(pred, soft_targets):
-    # softmax_pred = nn.LogSoftmax(dim=1)(pred)
-    return torch.sqrt(nn.MSELoss()(pred, soft_targets))
-
 # def soft_loss(pred, soft_targets):
-#     logsoftmax = nn.LogSoftmax(dim=1)
-#     return torch.mean(torch.sum(-soft_targets * logsoftmax(pred), dim=1))
+#     # softmax_pred = nn.LogSoftmax(dim=1)(pred)
+#     return torch.sqrt(nn.MSELoss()(pred, soft_targets))
+
+def soft_loss(pred, soft_targets):
+    logsoftmax = nn.LogSoftmax(dim=1)
+    return torch.mean(torch.sum(-soft_targets * logsoftmax(pred), dim=1))
 
 def plain_target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
     target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)

@@ -22,16 +22,17 @@ from runner.my_Rand import brain_Rand as rain_Rand
 # from runner.my_Rand import btower_Rand as tower_Rand
 
 
-def new_soft_loss(pred, soft_targets):
-    mse = nn.MSELoss()(pred, soft_targets)
-    if mse>1:
-        return torch.sqrt(mse)
+def soft_loss(pred, soft_targets, lamb=1):
+    if lamb<1:
+        mse = torch.sqrt(nn.MSELoss()(pred, soft_targets))
+        ce = torch.mean(torch.sum(-soft_targets * nn.LogSoftmax(dim=1)(pred), dim=1))
+        return mse + (1-lamb) * ce
     else:
-        return 10*mse + torch.sqrt(mse)
+        return torch.sqrt(nn.MSELoss()(pred, soft_targets))
 
-def soft_loss(pred, soft_targets):
-    # softmax_pred = nn.LogSoftmax(dim=1)(pred)
-    return torch.sqrt(nn.MSELoss()(pred, soft_targets))
+# def soft_loss(pred, soft_targets):
+#     # softmax_pred = nn.Softmax(dim=1)(pred)
+#     return torch.sqrt(nn.MSELoss()(pred, soft_targets))
 
 # def soft_loss(pred, soft_targets):
 #     logsoftmax = nn.LogSoftmax(dim=1)
@@ -65,44 +66,20 @@ def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
     
     return ret_inputs, ret_target
 
-'''
-def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
-    target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)
-    # Ensure target != true_target
-    target += (target >= true_target).int()
-    adversary.targeted = True
-
-    ## Reach Tower
-    # adv_inputs = 2*adversary.perturb(inputs, target).detach() - inputs
-
-    ## Reach Plain
-    adv_inputs = adversary.perturb(inputs, target).detach()
-    
-    ## Rand Gamma
-    rand_lambda = tower_Rand((true_target.shape[0],1,1,1), device=device)
-    ret_inputs = rand_lambda*adv_inputs + (1-rand_lambda)*inputs
-    
-    rand_lambda.squeeze_(3).squeeze_(2)
-    rand_lambda *= gamma
-    ret_target = rand_lambda*F.one_hot(target, num_class).to(device) + (1-rand_lambda)*F.one_hot(true_target, num_class).to(device)
-    
-    ## Still Gamma
-    # ret_inputs = adv_inputs
-    # ret_target = gamma*F.one_hot(target, num_class).to(device) + (1-gamma)*F.one_hot(true_target, num_class).to(device)
-    
-    return ret_inputs, ret_target
-'''
 
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
 
 
-class TargetRunner2():
+class MCERunner():
     def __init__(self, epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, num_class, device, gamma=0.5):
         self.device = device
         self.epochs = epochs
         self.eval_interval = 20
+        
+        self.lamb = 0.
+        self.dlamb = gamma
 
         self.model = model
         self.train_loader = train_loader
@@ -113,7 +90,6 @@ class TargetRunner2():
         self.scheduler = scheduler
         self.attacker = attacker
         self.num_class = num_class
-        self.gamma = gamma
 
         self.desc = lambda status, progress: f"{status}: {progress}"
         
@@ -138,11 +114,11 @@ class TargetRunner2():
         
         # Lipz test
         # std_lipz = self.std_lipz_eval()
-        # adv_lipz = self.adv_lipz_eval()
-        # if torch.distributed.get_rank() == 0:
-        #     tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
-        #     # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
-        #     writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
+        adv_lipz = self.adv_lipz_eval()
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
+            # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
+            writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
 
     def clean_step(self, progress):
         self.model.train()
@@ -207,54 +183,12 @@ class TargetRunner2():
 
         return loss_meter.report()
 
-    
-    def shades_adv_step(self, progress):
-        self.model.train()
-        loss_meter = AverageMeter()
-        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
-        for item1, item2 in zip(self.train_loader, self.shadow_loader):
-
-            inputs_0, labels_0 = item1
-            inputs_1, labels_1 = item2
-
-            batchSize = labels_0.shape[0]
-            inputs_0 = inputs_0.to(self.device)
-            labels_0 = labels_0.to(self.device)
-            inputs_0, labels_0 = target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
-            
-            inputs_1 = inputs_1.to(self.device)
-            labels_1 = labels_1.to(self.device)
-            inputs_1, labels_1 = target_attack(self.attacker, inputs_1, labels_1, self.num_class, self.device, self.gamma)
-
-            # Create inputs & labels
-            rand_vector = rain_Rand((batchSize, 1), device=self.device)
-            inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
-            labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
-            del inputs_0, inputs_1, labels_0, labels_1, rand_vector
-            
-            # print(inputs.requires_grad, inputs.shape)
-            outputs = self.model(inputs)
-            loss = soft_loss(outputs, labels)
-            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
-            loss_meter.update(loss.item())
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            
-            pbar.update(1)
-        pbar.close()
-
-        return loss_meter.report()
-    
-
     def multar_adv_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
-        for item1 in self.train_loader:
+        for inputs_0, labels_0 in self.train_loader:
 
-            inputs_0, labels_0 = item1
             batchSize = labels_0.shape[0]
             inputs_0 = inputs_0.to(self.device)
             labels_0 = labels_0.to(self.device)
@@ -270,13 +204,14 @@ class TargetRunner2():
             
             # print(inputs.requires_grad, inputs.shape)
             outputs = self.model(inputs)
-            loss = soft_loss(outputs, labels)
+            loss = soft_loss(outputs, labels, self.lamb)
             pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
             loss_meter.update(loss.item())
 
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+            self.lamb += self.dlamb
             
             pbar.update(1)
         pbar.close()
@@ -331,39 +266,6 @@ class TargetRunner2():
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
-    def std_lipz_eval(self, rand_times=256, eps=1.0/255):
-        self.model.eval()
-        with torch.no_grad():
-            all_Lipz = 0
-            sample_size = len(self.test_loader.dataset)
-
-            for batch_num, (example_0, _) in enumerate(self.test_loader):
-                rand_shape = list(example_0.shape)
-                example_0 = example_0.to(self.device)
-                pred_0 = self.model(example_0)
-
-                Local_Lipz = torch.zeros(rand_shape[0]).to(self.device)
-
-                # while True:
-                for i in range(rand_times):
-                    rand_vector = eps * (2*torch.rand(rand_shape)-1).to(self.device)
-                    pred_1 = self.model(example_0 + rand_vector)
-                
-                    # diff : rand_times * class_num
-                    # rand_vector : rand_times * 3 * 28 * 28
-                    diff = pred_1 - pred_0
-                    leng_diff = torch.sum(torch.abs(diff), dim=1)
-                    rand_vector = torch.abs(rand_vector).view(rand_shape[0], -1)
-                    leng_vector = torch.max(rand_vector, dim=1).values
-                
-                    # Count diff / rand_vector
-                    Ret = leng_diff / leng_vector
-                    Local_Lipz = Ret * (Ret>Local_Lipz) + Local_Lipz * (Ret<=Local_Lipz)
-                
-                all_Lipz += torch.sum(Local_Lipz) / sample_size
-
-        return all_Lipz
-
     def adv_lipz_eval(self):
         self.model.eval()
         all_Lipz = 0
@@ -438,65 +340,11 @@ class TargetRunner2():
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     
-    def shades_train(self, adv=True):
-        (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
-        avg_loss = collect(avg_loss, self.device)
-        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-
-        (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
-        avg_loss = collect(avg_loss, self.device)
-        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-        
-
-        for epoch_idx in range(self.epochs):
-            if adv:
-                avg_loss = self.shades_adv_step("{}/{}".format(epoch_idx, self.epochs))
-            else:
-                avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
-            avg_loss = collect(avg_loss, self.device)
-            if torch.distributed.get_rank() == 0:
-                if adv:
-                    tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
-                else:
-                    tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
-            
-            if self.scheduler is not None:
-                self.scheduler.step()
-
-            if epoch_idx % self.eval_interval == (self.eval_interval-1):
-                avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-
-                avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     
     def multar_train(self, writer, adv=True):
-        # (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
-        # avg_loss = collect(avg_loss, self.device)
-        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        # if torch.distributed.get_rank() == 0:
-        #     tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-
-        # (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
-        # avg_loss = collect(avg_loss, self.device)
-        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        # if torch.distributed.get_rank() == 0:
-        #     tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
         
         ## Add a Writer
-        # self.add_writer(writer, 0)
+        self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):
             if adv:
                 avg_loss = self.multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
@@ -514,21 +362,5 @@ class TargetRunner2():
             
             if self.scheduler is not None:
                 self.scheduler.step()
-
-            '''
-            if epoch_idx % self.eval_interval == (self.eval_interval-1):
-                avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-
-                avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-            
-            '''
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))

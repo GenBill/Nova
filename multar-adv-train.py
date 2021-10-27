@@ -28,7 +28,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     device = f'cuda:{device_id}'
 
     train_transforms = T.Compose([
-        # T.RandomCrop(32, padding=4),
+        T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
     ])
@@ -41,8 +41,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
 
-    shadow_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, seed=1)
-    shadow_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=shadow_sampler, num_workers=4, pin_memory=False)
+    shadow_loader = 0
 
     test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
@@ -63,8 +62,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
-    criterion = nn.CrossEntropyLoss()
-    # criterion = Quick_MSELoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = Quick_MSELoss(10)
 
     runner = TargetRunner(epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device, gamma)
     runner.multar_train(writer, adv=True)
@@ -72,18 +71,18 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
-        torch.save(model.cpu(), './checkpoint/multar-isoftower50-cifar10.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 1e-1
     epochs = 360
-    batch_size = 128
-    manualSeed = 2077    # 2077
+    batch_size = 128     # 128
+    manualSeed = 2077   # 2077
     gamma = 0.
 
-    # writer = SummaryWriter('./runs/curve_targetmix')
-    writer = SummaryWriter('./runs/void')
+    writer = SummaryWriter('./runs/curve_Final')
+    # writer = SummaryWriter('./runs/void')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

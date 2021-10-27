@@ -43,7 +43,17 @@ class Quick_MSELoss(nn.Module):
     def forward(self, input, label):
         target = F.one_hot(label, num_classes=self.n_class).float()
         return torch.sqrt(F.mse_loss(input, target, reduction=self.reduction))
-    
+
+class softmax_MSELoss(nn.Module):
+    def __init__(self, n_class, reduction='mean'):
+        super(softmax_MSELoss, self).__init__()
+        self.n_class = n_class
+        self.reduction = reduction
+
+    def forward(self, input, label):
+        target = F.one_hot(label, num_classes=self.n_class).float()
+        return torch.sqrt(F.mse_loss(F.softmax(input, dim=1), target, reduction=self.reduction))
+
 class softCrossEntropy(nn.Module):
     def __init__(self, reduce=True):
         super(softCrossEntropy, self).__init__()
@@ -64,3 +74,23 @@ class softCrossEntropy(nn.Module):
             loss = torch.sum(torch.mul(log_likelihood, targets), 1)
 
         return loss
+
+class CE2MSE_Loss(nn.Module):
+    def __init__(self, n_class, reduction='mean', diter=1e-4):
+        super(CE2MSE_Loss, self).__init__()
+        self.n_class = n_class
+        self.reduction = reduction
+        self.lamb = 0.
+        self.diter = diter
+
+    def forward(self, input, label):
+        if self.lamb<1:
+            self.lamb += self.diter
+        target = F.one_hot(label, num_classes=self.n_class).float()
+        mse = torch.sqrt(F.mse_loss(input, target, reduction=self.reduction))
+        
+        logsoftmax = nn.LogSoftmax(dim=1)
+        ce = torch.mean(torch.sum(-target * logsoftmax(input), dim=1))
+
+        return (1-self.lamb) * ce + mse
+

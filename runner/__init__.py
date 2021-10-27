@@ -10,4 +10,4 @@ from .untarget_runner import unTargetRunner
 
 from .Ptest_runner import PtestRunner
 
-from .target_runner2 import TargetRunner2
+from .mce_runner import MCERunner

@@ -22,13 +22,14 @@ from runner.my_Rand import brain_Rand as rain_Rand
 # from runner.my_Rand import btower_Rand as tower_Rand
 
 
-# def soft_loss(pred, soft_targets):
-#     # softmax_pred = nn.LogSoftmax(dim=1)(pred)
-#     return torch.sqrt(nn.MSELoss()(pred, soft_targets))
-
 def soft_loss(pred, soft_targets):
-    logsoftmax = nn.LogSoftmax(dim=1)
-    return torch.mean(torch.sum(-soft_targets * logsoftmax(pred), dim=1))
+    # softmax_pred = nn.Softmax(dim=1)(pred)
+    return torch.sqrt(F.mse_loss(pred, soft_targets))
+    # return torch.sqrt(F.mse_loss(F.softmax(pred, dim=1), soft_targets))
+
+# def soft_loss(pred, soft_targets):
+#     # logsoftmax = nn.LogSoftmax(dim=1)
+#     return torch.mean(torch.sum(-soft_targets * F.log_softmax(pred, dim=1), dim=1))
 
 def plain_target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
     target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)
@@ -131,11 +132,11 @@ class TargetRunner():
         
         # Lipz test
         # std_lipz = self.std_lipz_eval()
-        '''adv_lipz = self.adv_lipz_eval()
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
-            # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
-            writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)'''
+        # adv_lipz = self.adv_lipz_eval()
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
+        #     # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
+        #     writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
 
     def clean_step(self, progress):
         self.model.train()

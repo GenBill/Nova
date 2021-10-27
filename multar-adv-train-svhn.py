@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, SVHN
 
-from model import resnet18_small as resnet18_small    # wideresnet34 as 
+from model import resnet18 as resnet18_small    # wideresnet34 as 
 from runner import TargetRunner
 from utils import get_device_id, Quick_MSELoss
 
@@ -28,25 +28,29 @@ def run(lr, epochs, batch_size, gamma=0.5):
     device = f'cuda:{device_id}'
 
     train_transforms = T.Compose([
-        # T.RandomCrop(32, padding=4),
+        T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
+        # T.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+        # T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
     test_transforms = T.Compose([
-        # T.Resize((32, 32)),
+        T.Resize((32, 32)),
         T.ToTensor(),
+        # T.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
+        # T.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2471, 0.2435, 0.2616)),
     ])
+    # clip_min, clip_max = -1.9887, 2.1265
 
     train_dataset = SVHN(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8, pin_memory=False)
 
-    shadow_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, seed=1)
-    shadow_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=shadow_sampler, num_workers=4, pin_memory=False)
+    shadow_loader = 0
 
     test_dataset = SVHN(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=8, pin_memory=False)
 
     model = resnet18_small(n_class=train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
@@ -56,15 +60,15 @@ def run(lr, epochs, batch_size, gamma=0.5):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300, 400, 450], gamma=0.32)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
-    criterion = nn.CrossEntropyLoss()
-    # criterion = Quick_MSELoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = Quick_MSELoss(10)
 
     runner = TargetRunner(epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device, gamma)
     runner.multar_train(writer, adv=True)
@@ -72,18 +76,19 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
-        torch.save(model.cpu(), './checkpoint/multar-softower25-SVHN.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-SVHN.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 1e-1
-    epochs = 400
-    batch_size = 256
+    lr = 1
+    epochs = 500
+    batch_size = 64
+
     manualSeed = 2049    # 2077
     gamma = 0.
 
     # writer = SummaryWriter('./runs/curve_targetmix')
-    writer = SummaryWriter('./runs/SVHN_softower25')
+    writer = SummaryWriter('./runs/SVHN_plain')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

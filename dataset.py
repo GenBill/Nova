@@ -289,7 +289,7 @@ class subImageNet(Dataset):
     If use default parameters, it will just return a dataset with all ImageNet data.
     Otherwise, it will return a subset of ImageNet dataset.
     """
-    def __init__(self, dataroot, transform=T.Compose([]), train=True, subset=100, max_n_per_class=10000):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, subset=100, max_n_per_class=1000):
         # Initial parameters
         self.dataroot_param = dataroot
         self.dataroot = os.path.join(dataroot, "ilsvrc2012")

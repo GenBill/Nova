@@ -11,7 +11,7 @@ from attacker import L2PGD, LinfPGD
 from dataset import Cifar100
 
 from model import resnet18_small    # wideresnet34 as 
-from runner import TargetRunner as TargetRunner
+from runner import MCERunner as TargetRunner
 from utils import get_device_id, Quick_MSELoss
 
 from advertorch.attacks import LinfPGDAttack
@@ -61,15 +61,18 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=2e-4)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[300, 500, 600], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[380, 580, 680], gamma=0.1)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=5, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(100)
+
+    # CE Loss预热训练参数
+    gamma = 2 / ( (50000/64)*80 )
 
     runner = TargetRunner(epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device, gamma)
     runner.multar_train(writer, adv=True)
@@ -82,7 +85,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
 if __name__ == '__main__':
     lr = 0.32          # 4e-1
-    epochs = 620
+    epochs = 700
     batch_size = 64
     manualSeed = 517   # 2077
     gamma = 0.

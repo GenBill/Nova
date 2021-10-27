@@ -61,10 +61,10 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=2e-4)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 100, 150, 200, 250, 300, 350], gamma=0.32)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[20, 40, 50, 60, 70, 75], gamma=0.32)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=20, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
@@ -82,13 +82,13 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
 if __name__ == '__main__':
     lr = 0.1           # 4e-1
-    epochs = 400
+    epochs = 80
     batch_size = 128
     manualSeed = 517   # 2077
     gamma = 0.
 
     # writer = SummaryWriter('./runs/curve_targetmix')
-    writer = SummaryWriter('./runs/mnist_plain128_100_800')
+    writer = SummaryWriter('./runs/mnist_plain128')
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 

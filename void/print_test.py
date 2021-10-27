@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 
 a = torch.rand(4,2)
 gamma = 0.3
@@ -13,3 +14,12 @@ print(a.shape, b.shape)
 
 label=torch.LongTensor([ [0],[1],[2] ])
 print(label.shape)
+
+
+
+
+pred = torch.rand(2,4)
+print(pred)
+
+softmax_pred = nn.LogSoftmax(dim=1)(pred)
+print(softmax_pred)

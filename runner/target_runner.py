@@ -2,6 +2,7 @@ from torch._C import Size
 from tqdm.auto import tqdm
 from utils import AverageMeter
 from utils import collect
+import random
 
 import torch
 import torch.nn as nn
@@ -58,6 +59,91 @@ def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
     ret_target = F.one_hot(true_target, num_class).float().to(device)
     
     return ret_inputs, ret_target
+
+def Tex_Mix(adv_inputs, inputs, batch_size, device):
+    rand_lambda = tower_Rand((batch_size,1,1,1), device=device)
+    return rand_lambda*adv_inputs + (1-rand_lambda)*inputs
+
+def Vertex_Mix(adv_inputs, inputs, batch_size, device):
+    rand_lambda = tower_Rand((batch_size,1,1,1), device=device)
+    ret_inputs_1 = rand_lambda*adv_inputs + (1-rand_lambda)*inputs
+
+    rand_lambda = tower_Rand((batch_size,1,1,1), device=device)
+    ret_inputs_2 = rand_lambda*adv_inputs + (1-rand_lambda)*inputs
+
+    return torch.cat((ret_inputs_1, ret_inputs_2), 0)
+
+def sr_target_attack(adversary, inputs, true_target, num_class, device):
+    adversary.targeted = True
+    batch_size = true_target.shape[0]
+
+    target1 = torch.zeros(batch_size, dtype=int, device=device)
+    target2 = torch.zeros(batch_size, dtype=int, device=device)
+    target3 = torch.zeros(batch_size, dtype=int, device=device)
+    target4 = torch.zeros(batch_size, dtype=int, device=device)
+
+    for i in range(batch_size):
+        L1 = random.sample(range(num_class), 5)
+        target1[i], target2[i], target3[i], target4[i] = L1[0], L1[1], L1[2], L1[3]
+        
+        if true_target[i] == L1[0]:
+            target1[i] = L1[4]
+        elif true_target[i] == L1[1]:
+            target2[i] = L1[4]
+        elif true_target[i] == L1[2]:
+            target3[i] = L1[4]
+        else :
+            target4[i] = L1[4]
+
+    sample1 = adversary.perturb(inputs, target1).detach()
+    sample1 = Tex_Mix(sample1, inputs, batch_size, device)
+
+    sample2 = adversary.perturb(inputs, target2).detach()
+    sample2 = Tex_Mix(sample2, inputs, batch_size, device)
+
+    sample3 = adversary.perturb(inputs, target3).detach()
+    sample3 = Tex_Mix(sample3, inputs, batch_size, device)
+
+    sample4 = adversary.perturb(inputs, target4).detach()
+    sample4 = Tex_Mix(sample4, inputs, batch_size, device)
+
+    return sample1, sample2, sample3, sample4
+
+def ssr_target_attack(adversary, inputs, true_target, num_class, device):
+    adversary.targeted = True
+    batch_size = true_target.shape[0]
+
+    target1 = torch.zeros(batch_size, dtype=int, device=device)
+    target2 = torch.zeros(batch_size, dtype=int, device=device)
+    target3 = torch.zeros(batch_size, dtype=int, device=device)
+    target4 = torch.zeros(batch_size, dtype=int, device=device)
+
+    for i in range(batch_size):
+        L1 = random.sample(range(num_class), 5)
+        target1[i], target2[i], target3[i], target4[i] = L1[0], L1[1], L1[2], L1[3]
+        
+        if true_target[i] == L1[0]:
+            target1[i] = L1[4]
+        elif true_target[i] == L1[1]:
+            target2[i] = L1[4]
+        elif true_target[i] == L1[2]:
+            target3[i] = L1[4]
+        else :
+            target4[i] = L1[4]
+
+    sample1 = adversary.perturb(inputs, target1).detach()
+    sample1 = Vertex_Mix(sample1, inputs, batch_size, device)
+
+    sample2 = adversary.perturb(inputs, target2).detach()
+    sample2 = Vertex_Mix(sample2, inputs, batch_size, device)
+
+    sample3 = adversary.perturb(inputs, target3).detach()
+    sample3 = Vertex_Mix(sample3, inputs, batch_size, device)
+
+    sample4 = adversary.perturb(inputs, target4).detach()
+    sample4 = Vertex_Mix(sample4, inputs, batch_size, device)
+
+    return sample1, sample2, sample3, sample4
 
 '''
 def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
@@ -246,25 +332,166 @@ class TargetRunner():
         self.model.train()
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
-        for item1 in self.train_loader:
+        for inputs_0, labels_0 in self.train_loader:
 
-            inputs_0, labels_0 = item1
             batchSize = labels_0.shape[0]
             inputs_0 = inputs_0.to(self.device)
             labels_0 = labels_0.to(self.device)
 
-            inputs_1, labels_1 = target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
-            inputs_2, labels_2 = target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
+            inputs_1, _ = target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
+            inputs_2, _ = target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
 
             # Create inputs & labels
             rand_vector = rain_Rand((batchSize, 1), device=self.device)
             inputs = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_2 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
-            labels = labels_1 * rand_vector + labels_2 * (1-rand_vector)
-            del inputs_0, inputs_1, inputs_2, labels_0, labels_1, labels_2, rand_vector
+            labels = labels_0
+            del inputs_0, inputs_1, inputs_2, labels_0, rand_vector
             
             # print(inputs.requires_grad, inputs.shape)
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+    
+    def sr_multar_adv_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs_0, labels_0 in self.train_loader:
+
+            batchSize = labels_0.shape[0]
+            inputs_0 = inputs_0.to(self.device)
+            labels_0 = labels_0.to(self.device)
+
+            inputs_1, inputs_2, inputs_3, inputs_4 = sr_target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device)
+            del inputs_0
+
+            # Create inputs & labels
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_2 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_3 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            del inputs_1
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_2 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_3 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_2 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            del inputs_2
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_3 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            del inputs_3, inputs_4, rand_vector
+
+            labels_0 = torch.cat((labels_0,labels_0,labels_0,labels_0,labels_0,labels_0),0)
+            labels_0 = F.one_hot(labels_0, self.num_class).float().to(self.device)
+            
+            # print(inputs.requires_grad, inputs.shape)
+            outputs = self.model(inputs)
+            loss = soft_loss(outputs, labels_0)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+
+    def ssr_multar_adv_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs_0, labels_0 in self.train_loader:
+
+            batchSize = labels_0.shape[0]*2
+            inputs_0 = inputs_0.to(self.device)
+            labels_0 = labels_0.to(self.device)
+
+            inputs_1, inputs_2, inputs_3, inputs_4 = ssr_target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device)
+            del inputs_0
+
+            # Create inputs & labels
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_2 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_3 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_2 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_3 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_1 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            del inputs_1
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_2 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_3 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_2 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_2 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_3 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_2 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            del inputs_2
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_3 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+
+            rand_vector = rain_Rand((batchSize, 1), device=self.device)
+            inputs_temp = inputs_3 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_4 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
+            inputs = torch.cat((inputs, inputs_temp), 0)
+            del inputs_3, inputs_4, rand_vector
+
+            labels_0 = torch.cat((labels_0,labels_0),0)
+            labels_0 = torch.cat((labels_0,labels_0,labels_0),0)
+            labels_0 = torch.cat((labels_0,labels_0,labels_0,labels_0),0)
+            labels_0 = F.one_hot(labels_0, self.num_class).float().to(self.device)
+            
+            # print(inputs.requires_grad, inputs.shape)
+            outputs = self.model(inputs)
+            loss = soft_loss(outputs, labels_0)
             pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
             loss_meter.update(loss.item())
 
@@ -524,5 +751,75 @@ class TargetRunner():
                     tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
             
             '''
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+
+    def sr_multar_train(self, writer, adv=True):
+        # (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        
+        ## Add a Writer
+        self.add_writer(writer, 0)
+        for epoch_idx in range(self.epochs):
+            if adv:
+                avg_loss = self.sr_multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
+            else:
+                avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                if adv:
+                    tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+                else:
+                    tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            self.add_writer(writer, epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+
+    def ssr_multar_train(self, writer, adv=True):
+        # (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        
+        ## Add a Writer
+        self.add_writer(writer, 0)
+        for epoch_idx in range(self.epochs):
+            if adv:
+                avg_loss = self.ssr_multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
+            else:
+                avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                if adv:
+                    tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+                else:
+                    tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            self.add_writer(writer, epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))

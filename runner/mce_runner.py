@@ -79,7 +79,7 @@ class MCERunner():
         self.eval_interval = 20
         
         self.lamb = 0.
-        self.dlamb = gamma
+        self.gamma = gamma
 
         self.model = model
         self.train_loader = train_loader
@@ -114,11 +114,11 @@ class MCERunner():
         
         # Lipz test
         # std_lipz = self.std_lipz_eval()
-        adv_lipz = self.adv_lipz_eval()
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
-            # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
-            writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
+        # adv_lipz = self.adv_lipz_eval()
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
+        #     # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
+        #     writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
 
     def clean_step(self, progress):
         self.model.train()
@@ -211,7 +211,7 @@ class MCERunner():
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
-            self.lamb += self.dlamb
+            self.lamb += self.gamma
             
             pbar.update(1)
         pbar.close()

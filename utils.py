@@ -42,18 +42,9 @@ class Quick_MSELoss(nn.Module):
 
     def forward(self, input, label):
         target = F.one_hot(label, num_classes=self.n_class).float()
-        return torch.sqrt(F.mse_loss(input, target, reduction=self.reduction))
+        return torch.mean(torch.sqrt(torch.mean((input-target)**2, dim=1)), dim=0)
 
-class softmax_MSELoss(nn.Module):
-    def __init__(self, n_class, reduction='mean'):
-        super(softmax_MSELoss, self).__init__()
-        self.n_class = n_class
-        self.reduction = reduction
-
-    def forward(self, input, label):
-        target = F.one_hot(label, num_classes=self.n_class).float()
-        return torch.sqrt(F.mse_loss(F.softmax(input, dim=1), target, reduction=self.reduction))
-
+    
 class softCrossEntropy(nn.Module):
     def __init__(self, reduce=True):
         super(softCrossEntropy, self).__init__()
@@ -87,10 +78,38 @@ class CE2MSE_Loss(nn.Module):
         if self.lamb<1:
             self.lamb += self.diter
         target = F.one_hot(label, num_classes=self.n_class).float()
-        mse = torch.sqrt(F.mse_loss(input, target, reduction=self.reduction))
+        mse = torch.mean(torch.sqrt(torch.sum((input-target)**2, dim=1)), dim=0)
+        # mse = torch.sqrt(F.mse_loss(input, target, reduction=self.reduction))
         
         logsoftmax = nn.LogSoftmax(dim=1)
         ce = torch.mean(torch.sum(-target * logsoftmax(input), dim=1))
 
         return (1-self.lamb) * ce + mse
+
+
+class Scheduler_2():
+    def __init__(self, scheduler1, scheduler2):
+        self.scheduler1 = scheduler1
+        self.scheduler2 = scheduler2
+    def step(self):
+        self.scheduler1.step()
+        self.scheduler2.step()
+
+class Scheduler_3():
+    def __init__(self, scheduler1, scheduler2, scheduler3):
+        self.scheduler1 = scheduler1
+        self.scheduler2 = scheduler2
+        self.scheduler3 = scheduler3
+    def step(self):
+        self.scheduler1.step()
+        self.scheduler2.step()
+        self.scheduler3.step()
+
+class Scheduler_List():
+    def __init__(self, mylist):
+        self.mylist = mylist
+
+    def step(self):
+        for scheduler in self.mylist:
+            scheduler.step()
 

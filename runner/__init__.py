@@ -11,3 +11,4 @@ from .untarget_runner import unTargetRunner
 from .Ptest_runner import PtestRunner
 
 from .mce_runner import MCERunner
+from .poly_runner import PolyRunner

@@ -8,6 +8,16 @@ from torch.utils.data import Dataset
 from torchvision import datasets
 from torchvision import transforms as T
 
+def turn_sub(cifar100: datasets.CIFAR100, subset):
+    new_data = []
+    new_label = []
+    for data, label in zip(cifar100.data, cifar100.targets):
+        if label in range(subset):
+            new_data.append(data)
+            new_label.append(label)
+    cifar100.data = new_data
+    cifar100.targets = new_label
+
 class MNIST(Dataset):
     def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=6000):
         self.dataroot_param = dataroot
@@ -133,6 +143,45 @@ class Cifar100(Dataset):
         self.transform = transform
 
         self.data = datasets.CIFAR100(root=self.dataroot, train=train, transform=self.transform, download=True)
+
+        self.classes = self.data.classes
+        self.class_num = len(self.data.classes)
+        self.class_to_idx = self.data.class_to_idx
+        self.idx_to_class = {self.class_to_idx[cls]:cls for cls in self.class_to_idx}
+
+        self.subset_mask = np.array(self.data.targets)
+        for i in range(100):
+            self.subset_mask[np.where(self.subset_mask == i)[0][self.max_n_per_class:]] = -1
+        self.subset_indices = np.where(self.subset_mask != -1)[0]
+    
+    def __getitem__(self, idx):
+        return self.data.__getitem__(idx)
+        idx_in_ori_data = self.subset_indices[idx]
+        return self.data.__getitem__(idx_in_ori_data)
+
+    def __len__(self):
+        return len(self.subset_indices)
+
+    def __repr__(self):
+        repr = """Cifar100 Dataset(subset):
+\tRoot location: {}
+\tSplit: {}
+\tClass num: {}
+\tData num: {}""".format(self.dataroot, 'Train' if self.train else 'Test', self.class_num, self.__len__())
+        return repr
+
+class subCifar100(Dataset):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, subset=10, max_n_per_class=600):
+        self.dataroot_param = dataroot
+        self.dataroot = dataroot
+        self.train = train
+
+        self.max_n_per_class = max_n_per_class
+
+        self.transform = transform
+
+        self.data = datasets.CIFAR100(root=self.dataroot, train=train, transform=self.transform, download=True)
+        turn_sub(self.data, subset)
 
         self.classes = self.data.classes
         self.class_num = len(self.data.classes)
@@ -289,7 +338,7 @@ class subImageNet(Dataset):
     If use default parameters, it will just return a dataset with all ImageNet data.
     Otherwise, it will return a subset of ImageNet dataset.
     """
-    def __init__(self, dataroot, transform=T.Compose([]), train=True, subset=100, max_n_per_class=1000):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, subset=100, max_n_per_class=10000):
         # Initial parameters
         self.dataroot_param = dataroot
         self.dataroot = os.path.join(dataroot, "ilsvrc2012")
@@ -358,6 +407,46 @@ class subImageNet(Dataset):
 
     def __repr__(self):
         repr = """ImageNet Dataset:
+\tRoot location: {}
+\tSplit: {}
+\tClass num: {}
+\tData num: {}""".format(self.dataroot, 'Train' if self.train else 'Test', self.class_num, self.__len__())
+        return repr
+
+
+# Tiny-ImageNet
+class TinyImageNet(Dataset):
+    def __init__(self, dataroot, transform=T.Compose([]), train=True, max_n_per_class=600):
+        self.dataroot_param = dataroot
+        self.dataroot = dataroot
+        self.train = train
+
+        self.max_n_per_class = max_n_per_class
+
+        self.transform = transform
+
+        self.data = datasets.ImageFolder(root=os.path.join(self.dataroot, 'train' if train else 'val'), transform=self.transform)
+
+        self.classes = self.data.classes
+        self.class_num = len(self.classes)
+        self.class_to_idx = self.data.class_to_idx
+        self.idx_to_class = {self.class_to_idx[cls]:cls for cls in self.class_to_idx}
+
+        self.subset_mask = np.array(self.data.targets)
+        for i in range(200):
+            self.subset_mask[np.where(self.subset_mask == i)[0][self.max_n_per_class:]] = -1
+        self.subset_indices = np.where(self.subset_mask != -1)[0]
+    
+    def __getitem__(self, idx):
+        return self.data.__getitem__(idx)
+        idx_in_ori_data = self.subset_indices[idx]
+        return self.data.__getitem__(idx_in_ori_data)
+
+    def __len__(self):
+        return len(self.subset_indices)
+
+    def __repr__(self):
+        repr = """Tiny Imagenet Dataset(subset):
 \tRoot location: {}
 \tSplit: {}
 \tClass num: {}

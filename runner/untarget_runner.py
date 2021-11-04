@@ -23,8 +23,8 @@ from runner.my_Rand import brain_Rand as rain_Rand
 
 
 def soft_loss(pred, soft_targets):
-    # softmax_pred = nn.LogSoftmax(dim=1)(pred)
-    return torch.sqrt(nn.MSELoss()(pred, soft_targets))
+    # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
+    return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
 
 # def soft_loss(pred, soft_targets):
 #     logsoftmax = nn.LogSoftmax(dim=1)

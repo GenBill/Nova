@@ -42,7 +42,8 @@ class Quick_MSELoss(nn.Module):
 
     def forward(self, input, label):
         target = F.one_hot(label, num_classes=self.n_class).float()
-        return torch.mean(torch.sqrt(torch.mean((input-target)**2, dim=1)), dim=0)
+        return torch.mean(torch.norm(input-target, dim=1), dim=0)
+        # return torch.mean(torch.sqrt(torch.mean((input-target)**2, dim=1)), dim=0)
 
     
 class softCrossEntropy(nn.Module):

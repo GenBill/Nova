@@ -58,14 +58,14 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,570,580,590], gamma=0.25)
 
     scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
 
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=4/255, nb_iter=4, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=4, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
@@ -82,9 +82,9 @@ def run(lr, epochs, batch_size, gamma=0.5):
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.1 *1.6#*2
+    lr = 0.032 *1.2
     epochs = 600
-    batch_size = 64    # 128
+    batch_size = 128    # 128
     manualSeed = 2049   # 2077
     gamma = 0.
 

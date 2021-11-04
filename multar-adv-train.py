@@ -56,9 +56,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8, 12,16], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200, 300, 350], gamma=0.1)
-    scheduler = Scheduler_2(scheduler1, scheduler2)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 200, 300], gamma=0.1)
+    # scheduler = Scheduler_2(scheduler1, scheduler2)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -78,7 +77,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.032
+    lr = 0.1
     epochs = 400
     batch_size = 64
     manualSeed = 1874    # 2077

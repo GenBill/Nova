@@ -11,29 +11,12 @@ def _init_weight(m):
         nn.init.kaiming_normal_(m.weight.data)
         nn.init.constant_(m.weight.bias)
 
-class Normalization(nn.Module):
-    def __init__(self, mean, std, n_channels=3):
-        super(Normalization, self).__init__()
-        self.n_channels=n_channels
-        if mean is None:
-            mean = [.0] * n_channels
-        if std is None:
-            std = [.1] * n_channels
-        self.mean = torch.tensor(list(mean)).reshape((1, self.n_channels, 1, 1))
-        self.std = torch.tensor(list(std)).reshape((1, self.n_channels, 1, 1))
-        self.mean = nn.Parameter(self.mean)
-        self.std = nn.Parameter(self.std)
-    
-    def forward(self, x):
-        y = (x - self.mean / self.std)
-        return y
-
 class resnet18(nn.Module):
     def __init__(self, n_class, mean=None, std=None):
         super(resnet18, self).__init__()
         self.n_class = n_class
 
-        self.norm = Normalization(mean, std)
+        # self.norm = Normalization(mean, std)
         self.encoder = nn.Sequential(*list(models.resnet18(pretrained=False).children())[:-1]+[nn.Flatten()])
         self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=False)
         self.encoder.apply(_init_weight)
@@ -51,7 +34,7 @@ class resnet18_small(nn.Module):
         super(resnet18_small, self).__init__()
         self.n_class = n_class
 
-        self.norm = Normalization(mean, std)
+        # self.norm = Normalization(mean, std)
         self.encoder = nn.Sequential(*list(models.resnet18(pretrained=False).children())[:-1]+[nn.Flatten()])
         self.encoder[0] = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
         self.encoder[3] = nn.Identity()
@@ -59,40 +42,20 @@ class resnet18_small(nn.Module):
         self.encoder.apply(_init_weight)
     
     def forward(self, x):
-        x_norm = self.norm(x)
-        f = self.encoder(x_norm)
-        # f = self.encoder(x)
+        # x_norm = self.norm(x)
+        # f = self.encoder(x_norm)
+        f = self.encoder(x)
         y = self.classifier(f)
 
         return y
 
-
-class resnet18_small_bias(nn.Module):
-    def __init__(self, n_class, mean=None, std=None):
-        super(resnet18_small_bias, self).__init__()
-        self.n_class = n_class
-
-        self.norm = Normalization(mean, std)
-        self.encoder = nn.Sequential(*list(models.resnet18(pretrained=False).children())[:-1]+[nn.Flatten()])
-        self.encoder[0] = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
-        self.encoder[3] = nn.Identity()
-        self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=False)
-        self.encoder.apply(_init_weight)
-    
-    def forward(self, x):
-        x_norm = self.norm(x)
-        f = self.encoder(x_norm)
-        # f = self.encoder(x)
-        y = self.classifier(f)
-
-        return y
 
 class resnet34(nn.Module):
     def __init__(self, n_class, mean=None, std=None):
         super(resnet34, self).__init__()
         self.n_class = n_class
 
-        self.norm = Normalization(mean, std)
+        # self.norm = Normalization(mean, std)
         self.encoder = nn.Sequential(*list(models.resnet34(pretrained=False).children())[:-1]+[nn.Flatten()])
         self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=True)
         self.encoder.apply(_init_weight)
@@ -109,7 +72,7 @@ class resnet34_small(nn.Module):
         super(resnet34_small, self).__init__()
         self.n_class = n_class
 
-        self.norm = Normalization(mean, std)
+        # self.norm = Normalization(mean, std)
         self.encoder = nn.Sequential(*list(models.resnet34(pretrained=False).children())[:-1]+[nn.Flatten()])
         self.encoder[0] = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
         self.encoder[3] = nn.Identity()
@@ -128,27 +91,8 @@ class resnet50(nn.Module):
         super(resnet50, self).__init__()
         self.n_class = n_class
 
-        self.norm = Normalization(mean, std)
+        # self.norm = Normalization(mean, std)
         self.encoder = nn.Sequential(*list(models.resnet50(pretrained=False).children())[:-1]+[nn.Flatten()])
-        self.classifier = nn.Linear(in_features=2048, out_features=n_class, bias=True)
-        self.encoder.apply(_init_weight)
-    
-    def forward(self, x):
-        x_norm = self.norm(x)
-        f = self.encoder(x_norm)
-        y = self.classifier(f)
-
-        return y
-
-class resnet50_small(nn.Module):
-    def __init__(self, n_class, mean=None, std=None):
-        super(resnet50_small, self).__init__()
-        self.n_class = n_class
-
-        self.norm = Normalization(mean, std)
-        self.encoder = nn.Sequential(*list(models.resnet50(pretrained=False).children())[:-1]+[nn.Flatten()])
-        self.encoder[0] = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
-        self.encoder[3] = nn.Identity()
         self.classifier = nn.Linear(in_features=2048, out_features=n_class, bias=True)
         self.encoder.apply(_init_weight)
     

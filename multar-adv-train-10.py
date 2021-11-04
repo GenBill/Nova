@@ -16,6 +16,7 @@ from runner import TargetRunner as TargetRunner
 from utils import get_device_id, Quick_MSELoss, Scheduler_2, Scheduler_List
 
 from advertorch.attacks import LinfPGDAttack
+from attacker import LinfPGDTargetAttack as LinfTarget
 from tensorboardX import SummaryWriter
 
 def run(lr, epochs, batch_size, gamma=0.5):
@@ -65,11 +66,11 @@ def run(lr, epochs, batch_size, gamma=0.5):
     scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
     
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
-    attacker = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, # eps_iter=2/255, nb_iter=10, 
-        eps_iter=2/255, nb_iter=10, 
-        rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
-    )
+    attacker = LinfTarget(model, num_class=10, epsilon=8/255, step=2/255, iterations=10, random_start=True)
+    # attacker = LinfPGDAttack(
+    #     model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
+    #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+    # )
 
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(10)
@@ -79,11 +80,11 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar100.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-LR.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-LRDL.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.1
+    lr = 0.032
     epochs = 360
     batch_size = 64     # 128
     manualSeed = 2049   # 2077

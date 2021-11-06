@@ -33,8 +33,8 @@ def onlyeval(checkpoint_list, batch_size):
     device = f'cuda:{device_id}'
 
     train_transforms = T.Compose([
-        T.RandomCrop(32, padding=4),
-        T.RandomHorizontalFlip(),
+        # T.RandomCrop(32, padding=4),
+        # T.RandomHorizontalFlip(),
         T.ToTensor(),
     ])
 
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     gamma = 0.3
     gamma_name = str(int(gamma*100))
     checkpoint_list = [
-        'checkpoint/multar-plain-cifar10sub1-DL100.pth',
+        'checkpoint/multar-plain-cifar10sub-1000.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

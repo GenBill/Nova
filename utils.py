@@ -9,18 +9,22 @@ from tqdm import tqdm
 
 from autoattack import AutoAttack
 
-class AverageMeter():
+class AverageMeter:
+    """Computes and stores the average and current value"""
     def __init__(self):
         self.reset()
 
     def reset(self):
-        # self.val = 0
-        self.sum = 0.
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
         self.count = 0
 
     def update(self, val, n=1):
-        self.sum += val
+        self.val = val
+        self.sum += val * n
         self.count += n
+        self.avg = self.sum / self.count
     
     def report(self):
         return (self.sum / self.count)
@@ -57,7 +61,7 @@ class Quick_MSELoss(nn.Module):
         self.reduction = reduction
 
     def forward(self, input, label):
-        target = F.one_hot(label, num_classes=self.n_class).float() *100
+        target = F.one_hot(label, num_classes=self.n_class).float()
         # input = F.log_softmax(input, dim=1)
         return torch.mean(torch.norm(input-target, dim=1), dim=0)
         # return torch.mean(torch.sqrt(torch.mean((input-target)**2, dim=1)), dim=0)

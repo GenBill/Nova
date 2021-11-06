@@ -432,7 +432,8 @@ class subImageNet32(Dataset):
 
         self.transform = transform
         
-        self.data = datasets.ImageNet(root=self.dataroot, split='train' if train else 'val', transform=self.transform)
+        split='train' if train else 'val'
+        self.data = datasets.ImageFolder(root=self.dataroot+'/'+split, transform=self.transform)
         
         # Metadata of dataset
         self.classes = self.data.classes

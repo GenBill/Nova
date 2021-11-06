@@ -31,7 +31,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     train_transforms = T.Compose([
         # T.RandomCrop(32, padding=4),
-        T.RandomHorizontalFlip(),
+        # T.RandomHorizontalFlip(),
         T.ToTensor(),
         Onepixel(32,32),
     ])
@@ -40,7 +40,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True, max_n_per_class=10)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
 
@@ -49,6 +49,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
+    test_loader = train_loader
 
     model = resnet18_small(n_class=train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
@@ -59,7 +60,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=2e-4)
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999)
     # scheduler4 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[80, 140, 200, 240], gamma=0.32)
     # scheduler4 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 140, 180, 220], gamma=0.32)
     scheduler = Scheduler_List([scheduler1, scheduler2])
@@ -79,12 +80,12 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar100.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-LRDLone.pth')
+        torch.save(model.state_dict(), './checkpoint/multar-plain-cifar10-LRDL1000.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.032
-    epochs = 300        # 240
+    lr = 0.001
+    epochs = 1000        # 240
     batch_size = 64     # 128
     manualSeed = 2049   # 2077
     gamma = 0.

@@ -12,11 +12,14 @@ from dataset import subImageNet32
 
 from model import resnet18_small as resnet18_small    # wideresnet34 as 
 from runner import TargetRunner
-from utils import get_device_id, Quick_MSELoss, Scheduler_2
+from utils import get_device_id, Quick_MSELoss, Scheduler_2, Onepixel
 
 from advertorch.attacks import LinfPGDAttack
 from attacker import LinfPGDTargetAttack as LinfTarget
 from tensorboardX import SummaryWriter
+
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 def run(lr, epochs, batch_size, gamma=0.5):
     torch.distributed.init_process_group(
@@ -32,18 +35,18 @@ def run(lr, epochs, batch_size, gamma=0.5):
         # T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
+        Onepixel(32,32),
     ])
     test_transforms = T.Compose([
         # T.Resize((32, 32)),
         T.ToTensor(),
     ])
 
-    train_dataset = subImageNet32(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = subImageNet32(os.environ['DATAROOT'], transform=train_transforms, train=True, max_n_per_class=1000)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
 
-    shadow_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, seed=1)
-    shadow_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=shadow_sampler, num_workers=4, pin_memory=False)
+    shadow_loader = 0
 
     test_dataset = subImageNet32(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
@@ -81,9 +84,9 @@ def run(lr, epochs, batch_size, gamma=0.5):
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.1
-    epochs = 400
-    batch_size = 128
+    lr = 0.032 *1.2
+    epochs = 600
+    batch_size = 64
     manualSeed = 1874    # 2077
     gamma = 0.
 

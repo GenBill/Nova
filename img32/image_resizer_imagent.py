@@ -114,6 +114,10 @@ if __name__ == '__main__':
 
 ## Run
 
-# python image_resizer_imagent.py -i ~/Datasets/ilsvrc2012/train -o ~/Datasets/Imagenet-32/train -s 32 -a box -r -j 10 
-# python image_resizer_imagent.py -i ~/Datasets/ilsvrc2012/val -o ~/Datasets/Imagenet-32/val -s 32 -a box
-# python image_resizer_imagent.py -i ~/Datasets/ilsvrc2012/test -o ~/Datasets/Imagenet-32/test -s 32 -a box
+# python image_resizer_imagent.py -i ~/Datasets/ilsvrc2012/train -o ~/Datasets/Imagenet-32/train -s 32 -a box -r -j 10 -e 10
+# python image_resizer_imagent.py -i ~/Datasets/ilsvrc2012/val -o ~/Datasets/Imagenet-32/val -s 32 -a box -e 10 -r
+# python image_resizer_imagent.py -i ~/Datasets/ilsvrc2012/test -o ~/Datasets/Imagenet-32/test -s 32 -a box -e 10 -r
+
+
+# python image2numpy_imagenet_train.py -i ~/Datasets/Imagenet-32-100/train/box -o ~/Datasets/Imagenet-32-100 -e 10
+# python image2numpy_imagenet_val.py -i ~/Datasets/Imagenet-32-100/val/box -o ~/Datasets/Imagenet-32-100 -e 10

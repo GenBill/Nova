@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10
 
-from model import resnet18_small as resnet18_small    # wideresnet34 as 
+from model import loadmodel18 as resnet18_small    # wideresnet34 as 
 from runner import TargetRunner as TargetRunner
 from utils import get_device_id, Quick_MSELoss, Scheduler_2, Scheduler_List
 
@@ -50,7 +50,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
-    model = resnet18_small(n_class=train_dataset.class_num).to(device)
+    model = resnet18_small(device, num_classes=train_dataset.class_num)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
         # find_unused_parameters = True, broadcast_buffers = False)
     # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
@@ -80,7 +80,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar100.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-LRDL.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-preDL.pth')
         print('Save model.')
 
 if __name__ == '__main__':
@@ -91,8 +91,7 @@ if __name__ == '__main__':
     gamma = 0.
 
     # writer = SummaryWriter('./runs/curve_targetmix')
-    writer = SummaryWriter('./runs/cifar10')
-    writertail = SummaryWriter('./runs/cifar10tail')
+    writer = SummaryWriter('./runs/cifar10pre')
     # random.seed(manualSeed)
     # torch.manual_seed(manualSeed)
 

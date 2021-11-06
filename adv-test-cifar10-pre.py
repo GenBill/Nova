@@ -9,7 +9,7 @@ from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar10
-from model import resnet18_small as resnet18_small
+from model import preactresnet18
 # from model import resnet18_small_prime as resnet18_small
 
 from runner import EvalRunner
@@ -35,12 +35,11 @@ def onlyeval(checkpoint_list, batch_size):
         T.ToTensor()
     ])
     
-    # test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
-    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=True)
+    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=12, pin_memory=False)
 
-    model = resnet18_small(n_class=test_dataset.class_num).to(device)
+    model = preactresnet18(False, num_classes=10, num_channels=3).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
     
     for checkpoint_path in checkpoint_list:
@@ -48,6 +47,9 @@ def onlyeval(checkpoint_list, batch_size):
             print('\nEval on {}'.format(checkpoint_path))
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint.state_dict())
+
+        # if torch.distributed.get_rank() == 0:
+        #     torch.save(model.cpu().state_dict(),'checkpoint/multar-plain-cifar10-preDLsave.pth')
 
         criterion = nn.CrossEntropyLoss()
 
@@ -60,14 +62,14 @@ def onlyeval(checkpoint_list, batch_size):
         if torch.distributed.get_rank() == 0:
             print("Eval (Clean) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on FGSM
+        # # Test on FGSM
         avg_loss, acc_sum, acc_count = runner.FGSM_eval("Eval FGSM")
         avg_loss = collect(avg_loss, runner.device)
         avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
         if torch.distributed.get_rank() == 0:
             print("Eval (FGSM) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on PGD20
+        # # Test on PGD20
         avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD20", nb_iter=20)
         avg_loss = collect(avg_loss, runner.device)
         avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
@@ -103,12 +105,7 @@ if __name__ == '__main__':
     gamma = 0.3
     gamma_name = str(int(gamma*100))
     checkpoint_list = [
-        'checkpoint/multar-plain-cifar10-LRDL.pth',
-        # './checkpoint/adv-prime-cifar10.pth',
-        # './checkpoint/Vertexmix-soft25-cifar10.pth',
-        # './checkpoint/adv-final-cifar10.pth',
-        # './checkpoint/multar-EdgeMix-0-cifar10.pth',
-        # './checkpoint/target-pgd-MSE-cifar10.pth',
+        'checkpoint/multar-plain-cifar10-preDL.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms as T
 from tqdm.auto import tqdm
 
-from attacker import L2PGD, LinfPGD
+# from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar10
 from model import resnet18_small
 
@@ -129,5 +129,15 @@ if __name__ == '__main__':
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'
-    onlyeval(checkpoint_list, batch_size, num_class)
+    # onlyeval(checkpoint_list, batch_size, num_class)
+
+    device = 'cpu'
+
+    from model import preactresnet18    # wideresnet34 as 
+    model = preactresnet18(False, num_classes=10, num_channels=3).to(device)
+
+    checkpoint_path = 'checkpoint/multar-plain-cifar10-preDL.pth'
+    checkpoint = torch.load(checkpoint_path, map_location=device)
+    model.load_state_dict(checkpoint.state_dict())
+
 

@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from autoattack import AutoAttack
 
-class AverageMeter:
+class AverageMeter():
     """Computes and stores the average and current value"""
     def __init__(self):
         self.reset()
@@ -21,8 +21,7 @@ class AverageMeter:
         self.count = 0
 
     def update(self, val, n=1):
-        self.val = val
-        self.sum += val * n
+        self.sum += val
         self.count += n
         self.avg = self.sum / self.count
     

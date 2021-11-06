@@ -66,7 +66,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     scheduler = Scheduler_List([scheduler1, scheduler2])
     
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
-    attacker = LinfTarget(model, num_class=10, epsilon=8/255, step=2/255, iterations=10, random_start=True)
+    attacker = LinfTarget(model, num_class=10, epsilon=8/255, step=4/255, iterations=20, random_start=True)
     # attacker = LinfPGDAttack(
     #     model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
     #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
@@ -84,7 +84,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.001
+    lr = 0.0032
     epochs = 1000        # 240
     batch_size = 64     # 128
     manualSeed = 2049   # 2077

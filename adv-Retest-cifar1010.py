@@ -82,7 +82,7 @@ def onlyeval(checkpoint_list, batch_size):
         #     print(x.grad)
         #     break
         
-        # test_accuracy(model, train_loader)
+        test_accuracy(model, train_loader)
         # test_accuracy(model, test_loader)
 
         # runner = EvalRunner(model, test_dataset.class_num, test_loader, criterion, device)
@@ -139,7 +139,7 @@ if __name__ == '__main__':
     gamma = 0.3
     gamma_name = str(int(gamma*100))
     checkpoint_list = [
-        'checkpoint/multar-plain-cifar10sub-1000.pth',
+        'checkpoint/multar-plain-cifar10-LRDL1000.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

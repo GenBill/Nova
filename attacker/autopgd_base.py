@@ -86,7 +86,7 @@ def L1_projection(x2, y2, eps1):
 
 
 
-class APGDAttack():
+class my_APGDAttack():
     """
     AutoPGD
     https://arxiv.org/abs/2003.01690
@@ -135,7 +135,7 @@ class APGDAttack():
         self.topk = topk
         self.verbose = verbose
         self.device = device
-        self.use_rs = True
+        self.use_rs = False     # True
         #self.init_point = None
         self.use_largereps = use_largereps
         #self.larger_epss = None
@@ -205,6 +205,7 @@ class APGDAttack():
         return -(x[u, y] - x_sorted[:, -2] * ind - x_sorted[:, -1] * (
             1. - ind)) / (x_sorted[:, -1] - x_sorted[:, -3] + 1e-12)
 
+    #
     
     def attack_single_run(self, x, y, x_init=None):
         if len(x.shape) < self.ndims:
@@ -573,7 +574,7 @@ class APGDAttack():
 
         return (x_init, acc, loss, x_adv)
 
-class APGDAttack_targeted(APGDAttack):
+class my_APGDAttack_targeted(my_APGDAttack):
     def __init__(
             self,
             predict,
@@ -594,11 +595,12 @@ class APGDAttack_targeted(APGDAttack):
         """
         AutoPGD on the targeted DLR loss
         """
-        super(APGDAttack_targeted, self).__init__(predict, n_iter=n_iter, norm=norm,
+        super(my_APGDAttack_targeted, self).__init__(predict, n_iter=n_iter, norm=norm,
             n_restarts=n_restarts, eps=eps, seed=seed, loss='dlr-targeted',
             eot_iter=eot_iter, rho=rho, topk=topk, verbose=verbose, device=device,
             use_largereps=use_largereps, is_tf_model=is_tf_model, logger=logger)
 
+        self.targeted = None
         self.y_target = None
         self.n_target_classes = n_target_classes
 
@@ -662,36 +664,47 @@ class APGDAttack_targeted(APGDAttack):
                 print('using schedule [{}x{}]'.format('+'.join([str(c
                     ) for c in epss]), '+'.join([str(c) for c in iters])))
         
-        for target_class in range(2, self.n_target_classes + 2):
-            for counter in range(self.n_restarts):
-                ind_to_fool = acc.nonzero().squeeze()
-                if len(ind_to_fool.shape) == 0:
-                    ind_to_fool = ind_to_fool.unsqueeze(0)
-                if ind_to_fool.numel() != 0:
-                    x_to_fool = x[ind_to_fool].clone()
-                    y_to_fool = y[ind_to_fool].clone()
+        # for target_class in range(2, self.n_target_classes + 2):
+        #     for counter in range(self.n_restarts):
+        #         ind_to_fool = acc.nonzero().squeeze()
+        #         if len(ind_to_fool.shape) == 0:
+        #             ind_to_fool = ind_to_fool.unsqueeze(0)
+        #         if ind_to_fool.numel() != 0:
+        #             x_to_fool = x[ind_to_fool].clone()
+        #             y_to_fool = y[ind_to_fool].clone()
                     
-                    if not self.is_tf_model:
-                        output = self.model(x_to_fool)
-                    else:
-                        output = self.model.predict(x_to_fool)
-                    self.y_target = output.sort(dim=1)[1][:, -target_class]
+        #             if not self.is_tf_model:
+        #                 output = self.model(x_to_fool)
+        #             else:
+        #                 output = self.model.predict(x_to_fool)
+        #             self.y_target = output.sort(dim=1)[1][:, -target_class]
 
-                    if not self.use_largereps:
-                        res_curr = self.attack_single_run(x_to_fool, y_to_fool)
-                    else:
-                        res_curr = self.decr_eps_pgd(x_to_fool, y_to_fool, epss, iters)
-                    best_curr, acc_curr, loss_curr, adv_curr = res_curr
-                    ind_curr = (acc_curr == 0).nonzero().squeeze()
+        #             if not self.use_largereps:
+        #                 res_curr = self.attack_single_run(x_to_fool, y_to_fool)
+        #             else:
+        #                 res_curr = self.decr_eps_pgd(x_to_fool, y_to_fool, epss, iters)
+        #             best_curr, acc_curr, loss_curr, adv_curr = res_curr
+        #             ind_curr = (acc_curr == 0).nonzero().squeeze()
 
-                    acc[ind_to_fool[ind_curr]] = 0
-                    adv[ind_to_fool[ind_curr]] = adv_curr[ind_curr].clone()
-                    if self.verbose:
-                        print('target class {}'.format(target_class),
-                            '- restart {} - robust accuracy: {:.2%}'.format(
-                            counter, acc.float().mean()),
-                            '- cum. time: {:.1f} s'.format(
-                            time.time() - startt))
+        #             acc[ind_to_fool[ind_curr]] = 0
+        #             adv[ind_to_fool[ind_curr]] = adv_curr[ind_curr].clone()
+        #             if self.verbose:
+        #                 print('target class {}'.format(target_class),
+        #                     '- restart {} - robust accuracy: {:.2%}'.format(
+        #                     counter, acc.float().mean()),
+        #                     '- cum. time: {:.1f} s'.format(
+        #                     time.time() - startt))
+                
+        self.y_target = torch.randint(low=0, high=self.n_target_classes, size=y.shape, device=self.device)
+        self.y_target += (self.y_target >= y).int()
 
-        return adv
+        # self.y_target = output.sort(dim=1)[1][:, -target_class]
+
+        if not self.use_largereps:
+            res_curr = self.attack_single_run(x, y)
+        else:
+            res_curr = self.decr_eps_pgd(x, y, epss, iters)
+        best_curr, acc_curr, loss_curr, adv_curr = res_curr
+
+        return adv_curr
 

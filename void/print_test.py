@@ -23,3 +23,8 @@ print(pred)
 
 softmax_pred = nn.LogSoftmax(dim=1)(pred)
 print(softmax_pred)
+
+import random
+print(random.randint(0,1))
+print(random.randint(0,1))
+print(random.randint(0,1))

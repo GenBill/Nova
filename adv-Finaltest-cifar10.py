@@ -91,6 +91,48 @@ def onlyeval(checkpoint_list, batch_size):
         if torch.distributed.get_rank() == 0:
             print("Eval (FGSM) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
+        # Test on myPGD20
+        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD10", nb_iter=10)
+        avg_loss = collect(avg_loss, runner.device)
+        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # Test on myPGD20
+        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD20", nb_iter=20)
+        avg_loss = collect(avg_loss, runner.device)
+        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # Test on myPGD40
+        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD40", nb_iter=40)
+        avg_loss = collect(avg_loss, runner.device)
+        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            print("Eval (PGD40) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        
+        # Test on myPGD100
+        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD100", nb_iter=100)
+        avg_loss = collect(avg_loss, runner.device)
+        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        
+        # Test on myPGD200
+        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD200", nb_iter=200)
+        avg_loss = collect(avg_loss, runner.device)
+        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            print("Eval (PGD200) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # Test on PGD20
+        avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD10", nb_iter=10)
+        avg_loss = collect(avg_loss, runner.device)
+        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
         # Test on PGD20
         avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD20", nb_iter=20)
         avg_loss = collect(avg_loss, runner.device)
@@ -112,13 +154,13 @@ def onlyeval(checkpoint_list, batch_size):
         # if torch.distributed.get_rank() == 0:
         #     print("Eval (CW20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
             
-        this_lipz = runner.Lipz_eval("Eval Lipz", nb_iter=100)
-        if torch.distributed.get_rank() == 0:
-            print("Locally Lipz : {:.6f}".format(this_lipz))
+        # this_lipz = runner.Lipz_eval("Eval Lipz", nb_iter=100)
+        # if torch.distributed.get_rank() == 0:
+        #     print("Locally Lipz : {:.6f}".format(this_lipz))
 
 if __name__ == '__main__':
 
-    batch_size = 128
+    batch_size = 256
     manualSeed = 2049
 
     random.seed(manualSeed)
@@ -130,7 +172,7 @@ if __name__ == '__main__':
     checkpoint_list = [
         # './checkpoint/clean-MSE-prime-cifar10.pth',
         # './checkpoint/adv-MSE-prime-cifar10.pth',
-        'checkpoint/multar-softower25-0-cifar10.pth',
+        'checkpoint/multar-plain-cifar10-LRDL.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

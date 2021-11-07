@@ -41,13 +41,13 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=8, pin_memory=False)
 
     shadow_loader = 0
 
     test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size*4, sampler=test_sampler, num_workers=4, pin_memory=False)
 
     model = resnet18_small(n_class=train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
@@ -68,7 +68,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # )
 
     attacker = my_APGDAttack_targeted(
-        model, eps=8/255, n_iter=10, 
+        model, eps=8/255, n_iter=100, 
         n_target_classes=train_dataset.class_num-1, device=device
     )
 
@@ -81,13 +81,13 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-AP.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-AP100.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.1
-    epochs = 400
-    batch_size = 64
+    epochs = 320
+    batch_size = 32
     manualSeed = 1874    # 2077
     gamma = 0.
 

@@ -10,6 +10,8 @@ from advertorch.attacks import FGSM as atk_FGSM
 from advertorch.attacks import LinfPGDAttack as atk_PGD
 from advertorch.attacks import CarliniWagnerL2Attack as atk_CW
 
+from attacker import my_APGDAttack_targeted
+
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
@@ -86,6 +88,36 @@ class EvalRunner():
         )
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
+        for batch_idx, (data, target) in enumerate(self.test_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            data = untarget_attack(attacker, data, target)
+            
+            with torch.no_grad():
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                loss_meter.update(loss.item())
+                pred = output.argmax(dim=1)
+
+                true_positive = (pred == target).sum().item()
+                total = pred.shape[0]
+                accuracy_meter.update(true_positive, total)
+                pbar.update(1)
+
+            pbar.close()
+        
+        return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
+    
+    def myPGD_eval(self, progress, nb_iter=20):
+        self.model.eval()
+        accuracy_meter = AverageMeter()
+        loss_meter = AverageMeter()
+
+        attacker = my_APGDAttack_targeted(
+            self.model, eps=8/255, n_iter=nb_iter, 
+            n_target_classes=self.num_classes-1, device=self.device
+        )
+        
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("myAdv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):
             data, target = data.to(self.device), target.to(self.device)
             data = untarget_attack(attacker, data, target)

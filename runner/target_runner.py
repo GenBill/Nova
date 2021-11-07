@@ -323,14 +323,14 @@ class TargetRunner():
             writer.add_scalar("clean_Acc", avg_acc, epoch_idx)
             writer.add_scalar("clean_Loss", avg_loss, epoch_idx)
 
-        # adv test
-        # avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
-        # avg_loss = collect(avg_loss, self.device)
-        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        # if torch.distributed.get_rank() == 0:
-        #     tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-        #     writer.add_scalar("adv_Acc", avg_acc, epoch_idx)
-        #     writer.add_scalar("adv_Loss", avg_loss, epoch_idx)
+        # now adv test
+        avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            writer.add_scalar("adv_Acc", avg_acc, epoch_idx)
+            writer.add_scalar("adv_Loss", avg_loss, epoch_idx)
 
         # std adv test
         avg_loss, acc_sum, acc_count = self.std_adv_eval("{}/{}".format(epoch_idx, self.epochs))
@@ -840,7 +840,6 @@ class TargetRunner():
         self.model.eval()
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
-
 
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):

@@ -12,7 +12,7 @@ from dataset import subImageNet32
 
 from model import resnet18_small as resnet18_small    # wideresnet34 as 
 from runner import TargetRunner
-from utils import get_device_id, Quick_MSELoss, Scheduler_2, Onepixel
+from utils import get_device_id, Quick_MSELoss, Scheduler_2, Onepixel, addNoise
 
 from advertorch.attacks import LinfPGDAttack
 from attacker import LinfPGDTargetAttack as LinfTarget
@@ -35,6 +35,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
         # T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
+        addNoise(8/255),
         Onepixel(32,32),
     ])
     test_transforms = T.Compose([

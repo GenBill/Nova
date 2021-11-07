@@ -152,10 +152,10 @@ class Onepixel():
 
 class addNoise():
     def __init__(self, eps=8/255):
-        self.eps = eps
+        self.eps = 2*eps
 
     def __call__(self, tensor):
-        rand = (torch.rand(tensor.shape)-0.5) * self.eps
+        rand = (torch.rand(tensor.shape)-0.5) *self.eps
         return tensor + rand
 
 

@@ -167,7 +167,7 @@ def onlyeval(checkpoint_list, batch_size):
 
 if __name__ == '__main__':
 
-    batch_size = 256
+    batch_size = 64
     manualSeed = 2049
 
     random.seed(manualSeed)

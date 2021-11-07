@@ -12,7 +12,7 @@ from dataset import Cifar100
 
 from model import resnet18_small as resnet18_small    # wideresnet34 as 
 from runner import TargetRunner
-from utils import Scheduler_List, get_device_id, Quick_MSELoss, Scheduler_List, Onepixel
+from utils import Scheduler_List, get_device_id, Quick_MSELoss, Scheduler_List, Onepixel, addNoise
 
 from advertorch.attacks import LinfPGDAttack
 from attacker import my_APGDAttack_targeted
@@ -32,7 +32,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
         # T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
-        Onepixel(32,32)
+        addNoise(8/255),
+        Onepixel(32,32),
     ])
     test_transforms = T.Compose([
         # T.Resize((32, 32)),

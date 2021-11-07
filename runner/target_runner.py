@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 import copy
 
-# from advertorch.attacks import LinfPGDAttack
+from advertorch.attacks import LinfPGDAttack
 
 # from runner.my_Rand import rain_Rand as rain_Rand
 # from runner.my_Rand import noRand_ones as tower_Rand
@@ -284,7 +284,7 @@ class TargetRunner():
     def __init__(self, epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, num_class, device, gamma=0.5):
         self.device = device
         self.epochs = epochs
-        self.eval_interval = 5
+        self.eval_interval = 10
 
         self.model = model
         self.train_loader = train_loader
@@ -294,6 +294,11 @@ class TargetRunner():
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.attacker = attacker
+        self.std_attacker = LinfPGDAttack(
+            self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=20, 
+            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+        )
+
         self.num_class = num_class
         self.gamma = gamma
 
@@ -319,7 +324,16 @@ class TargetRunner():
             writer.add_scalar("clean_Loss", avg_loss, epoch_idx)
 
         # adv test
-        avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
+        # avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+        #     writer.add_scalar("adv_Acc", avg_acc, epoch_idx)
+        #     writer.add_scalar("adv_Loss", avg_loss, epoch_idx)
+
+        # std adv test
+        avg_loss, acc_sum, acc_count = self.std_adv_eval("{}/{}".format(epoch_idx, self.epochs))
         avg_loss = collect(avg_loss, self.device)
         avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
         if torch.distributed.get_rank() == 0:
@@ -822,6 +836,32 @@ class TargetRunner():
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
+    def std_adv_eval(self, progress):
+        self.model.eval()
+        accuracy_meter = AverageMeter()
+        loss_meter = AverageMeter()
+
+
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
+        for batch_idx, (data, target) in enumerate(self.test_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            data = untarget_attack(self.std_attacker, data, target)
+            
+            with torch.no_grad():
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                loss_meter.update(loss.item())
+                pred = output.argmax(dim=1)
+
+                true_positive = (pred == target).sum().item()
+                total = pred.shape[0]
+                accuracy_meter.update(true_positive, total)
+                
+                pbar.update(1)
+        pbar.close()
+        
+        return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
+
     def std_lipz_eval(self, rand_times=256, eps=1.0/255):
         self.model.eval()
         with torch.no_grad():

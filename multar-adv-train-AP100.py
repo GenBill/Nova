@@ -68,7 +68,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # )
 
     attacker = my_APGDAttack_targeted(
-        model, eps=8/255, n_iter=10, 
+        model, eps=8/255, n_iter=20, 
         n_target_classes=train_dataset.class_num-1, device=device
     )
 

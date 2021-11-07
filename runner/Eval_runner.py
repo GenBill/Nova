@@ -85,7 +85,7 @@ class EvalRunner():
         loss_meter = AverageMeter()
 
         attacker = atk_PGD(
-            self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+            self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=20/255, nb_iter=nb_iter, 
             rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
         )
         

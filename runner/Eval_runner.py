@@ -205,8 +205,8 @@ class EvalRunner():
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = SquareAttack(self.model, p_init=.8, n_queries=5000, eps=self.epsilon, norm=self.norm,
-            n_restarts=1, seed=self.seed, verbose=False, device=self.device, resc_schedule=False)
+        attacker = SquareAttack(self.model, p_init=.8, n_queries=5000, eps=8/255, norm='Linf',
+            n_restarts=1, verbose=False, device=self.device, resc_schedule=False)
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):

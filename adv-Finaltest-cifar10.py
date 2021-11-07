@@ -85,74 +85,74 @@ def onlyeval(checkpoint_list, batch_size):
             print("Eval (Clean) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
         # Test on FGSM
-        avg_loss, acc_sum, acc_count = runner.FGSM_eval("Eval FGSM")
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (FGSM) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # avg_loss, acc_sum, acc_count = runner.FGSM_eval("Eval FGSM")
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (FGSM) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on myPGD20
-        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD10", nb_iter=10)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on myPGD20
+        # avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD10", nb_iter=10)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on myPGD20
-        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD20", nb_iter=20)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on myPGD20
+        # avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD20", nb_iter=20)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on myPGD40
-        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD40", nb_iter=40)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD40) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on myPGD40
+        # avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD40", nb_iter=40)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD40) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
         
-        # Test on myPGD100
-        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD100", nb_iter=100)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on myPGD100
+        # avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD100", nb_iter=100)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
         
-        # Test on myPGD200
-        avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD200", nb_iter=200)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD200) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on myPGD200
+        # avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD200", nb_iter=200)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD200) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on PGD20
-        avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD10", nb_iter=10)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on PGD20
+        # avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD10", nb_iter=10)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on PGD20
-        avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD20", nb_iter=20)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on PGD20
+        # avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD20", nb_iter=20)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on PGD100
-        avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD100", nb_iter=100)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on PGD100
+        # avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD100", nb_iter=100)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on Square
-        avg_loss, acc_sum, acc_count = runner.Square_eval("Eval Square", nb_iter=100)
+        # Test on SPSA
+        avg_loss, acc_sum, acc_count = runner.SPSA_eval("Eval SPSA", nb_iter=100)
         avg_loss = collect(avg_loss, runner.device)
         avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
         if torch.distributed.get_rank() == 0:
-            print("Eval (Square) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+            print("Eval (SPSA) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
         # Test on CW20 & CW100
         # avg_loss, acc_sum, acc_count = runner.CW_eval("Eval CW20", search_steps=4, nb_iter=20)

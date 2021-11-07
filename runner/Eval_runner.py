@@ -9,6 +9,7 @@ from utils import collect
 from advertorch.attacks import FGSM as atk_FGSM
 from advertorch.attacks import LinfPGDAttack as atk_PGD
 from advertorch.attacks import CarliniWagnerL2Attack as atk_CW
+from advertorch.attacks import LinfSPSAAttack
 
 from attacker import my_APGDAttack_targeted
 from autoattack.square import SquareAttack
@@ -207,6 +208,36 @@ class EvalRunner():
 
         attacker = SquareAttack(self.model, p_init=.8, n_queries=5000, eps=8/255, norm='Linf',
             n_restarts=1, verbose=False, device=self.device, resc_schedule=False)
+        
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
+        for batch_idx, (data, target) in enumerate(self.test_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            data = untarget_attack(attacker, data, target)
+            
+            with torch.no_grad():
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                loss_meter.update(loss.item())
+                pred = output.argmax(dim=1)
+
+                true_positive = (pred == target).sum().item()
+                total = pred.shape[0]
+                accuracy_meter.update(true_positive, total)
+                pbar.update(1)
+
+            pbar.close()
+        
+        return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
+    
+    def SPSA_eval(self, progress, nb_iter=20):
+        self.model.eval()
+        accuracy_meter = AverageMeter()
+        loss_meter = AverageMeter()
+
+        attacker = LinfSPSAAttack(self.model, eps=8/255, delta=0.01, lr=0.01, nb_iter=1,
+            nb_sample=128, max_batch_size=64, targeted=False,
+            loss_fn=None, clip_min=0.0, clip_max=1.0
+        )
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):

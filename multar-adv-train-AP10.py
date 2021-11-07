@@ -68,7 +68,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # )
 
     attacker = my_APGDAttack_targeted(
-        model, eps=8/255, n_iter=100, 
+        model, eps=8/255, n_iter=20, 
         n_target_classes=train_dataset.class_num-1, device=device
     )
 
@@ -81,7 +81,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar10.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-AP100.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-AP.pth')
         print('Save model.')
 
 if __name__ == '__main__':

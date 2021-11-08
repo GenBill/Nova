@@ -85,7 +85,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
 if __name__ == '__main__':
     lr = 0.032
-    epochs = 320        # 240
+    epochs = 240        # 320        # 240
     batch_size = 64     # 128
     manualSeed = 2049   # 2077
     gamma = 0.

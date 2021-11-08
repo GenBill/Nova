@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class LinfPGDTargetAttack(nn.Module):
     """Projected Gradient Decent(PGD) attack.
@@ -61,7 +62,13 @@ class LinfPGDTargetAttack(nn.Module):
         adv_x.requires_grad = True
         
         pred = self.model(adv_x)
-        atk_loss = (nn.functional.cross_entropy(pred, target) - nn.functional.cross_entropy(pred, faker))/2
+        
+        ## L2 Loss PGD
+        target_onehot = F.one_hot(target, num_classes=self.num_class).float()
+        faker_onehot = F.one_hot(faker, num_classes=self.num_class).float()
+        atk_loss = (torch.mean(torch.norm(pred-target_onehot, dim=1), dim=0)-torch.mean(torch.norm(pred-faker_onehot, dim=1), dim=0))/2
+        
+        # atk_loss = (nn.functional.cross_entropy(pred, target) - nn.functional.cross_entropy(pred, faker))/2
         # atk_loss = self.criterion(self.model, adv_x, target) - self.criterion(self.model, adv_x, faker)
 
         self.model.zero_grad()

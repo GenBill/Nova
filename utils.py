@@ -189,7 +189,7 @@ def test_accuracy(model, testloader):
     #                                  )
 
     attacker = AutoAttack(model,    # Packed_Model(model, mean=cifar10_mean, std=cifar10_std),
-                          norm='Linf', eps=4/255, version='standard', verbose=True)
+                          norm='Linf', eps=8/255, version='standard', verbose=True)
 
     with torch.no_grad():
         iter = tqdm(testloader, ncols=200)

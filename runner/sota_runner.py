@@ -58,7 +58,7 @@ def target_attack(adversary, inputs, true_target, num_class, device, gamma=0.):
     ret_inputs = rand_lambda*adv_inputs + (1-rand_lambda)*inputs
     
     one_target = F.one_hot(true_target, num_class).float().to(device)
-    rand_lambda = (0.5+0.5*torch.rand((true_target.shape[0],1,1,1), device=device)).unsqueeze(1)
+    rand_lambda = (0.8+0.2*torch.rand((true_target.shape[0],1,1,1), device=device)).unsqueeze(1)
 
     ret_target = rand_lambda*one_target + (1-rand_lambda)/(num_class-1)*(1-one_target)
     

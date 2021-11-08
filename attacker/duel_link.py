@@ -135,8 +135,16 @@ class LinfPGDTargetAttack(nn.Module):
             perturbation = self.random_perturbation(x)
 
         with torch.enable_grad():
-            for i in range(self.iterations):
+            self.step *= 4
+            perturbation = self.fakerstep(x, perturbation, target, faker)
+            self.step /= 2
+            perturbation = self.fakerstep(x, perturbation, target, faker)
+            perturbation = self.fakerstep(x, perturbation, target, faker)
+            self.step /= 2
+            for i in range(self.iterations-3):
                 perturbation = self.fakerstep(x, perturbation, target, faker)
+            # for i in range(self.iterations):
+            #     perturbation = self.fakerstep(x, perturbation, target, faker)
 
         self._model_unfreeze()
         if self.training:

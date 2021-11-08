@@ -236,7 +236,8 @@ class EvalRunner():
 
         attacker = LinfSPSAAttack(self.model, eps=8/255, delta=0.01, lr=0.01, nb_iter=nb_iter,
             nb_sample=128, max_batch_size=64, targeted=False,
-            loss_fn=nn.CrossEntropyLoss(reduction="none"), clip_min=0.0, clip_max=1.0
+            loss_fn=None, clip_min=0.0, clip_max=1.0
+            # loss_fn=nn.CrossEntropyLoss(reduction="none"), clip_min=0.0, clip_max=1.0
         )
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))

@@ -70,6 +70,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     #     model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
     #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, g
     # )
+
     attacker = LinfTarget(model, num_class=100, epsilon=8/255, step=2/255, iterations=10, random_start=True)
 
     # criterion = nn.CrossEntropyLoss()

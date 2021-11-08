@@ -12,7 +12,7 @@ from dataset import Cifar100, Cifar100
 
 from model import resnet18_small as resnet18_small    # wideresnet34 as resnet18_small
 from runner import LinfRunner as DistRunner
-from utils import get_device_id, Quick_MSELoss, CE2MSE_Loss, softmax_MSELoss
+from utils import get_device_id, Quick_MSELoss, Scheduler_List
 
 from advertorch.attacks import LinfPGDAttack
 
@@ -51,21 +51,18 @@ def run(lr, epochs, batch_size):
     # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[300, 400, 500], gamma=0.1)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,570,580,590], gamma=0.25)
+
+    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
-    # CE Loss预热训练
-    diter = 4 / ( (50000/64)*100 )
-    criterion = CE2MSE_Loss(n_class=train_dataset.class_num, diter=diter)
-    runner = DistRunner(100, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device)
-    runner.train(adv=True)
-
-    # MSE Loss
-    criterion = softmax_MSELoss(n_class=train_dataset.class_num)
+    criterion = Quick_MSELoss(n_class=train_dataset.class_num)
     runner = DistRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device)
     runner.train(adv=True)
 

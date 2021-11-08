@@ -14,7 +14,7 @@ from model import resnet18_small as resnet18_small
 # from model import resnet18_small_prime as resnet18_small    # wideresnet34 as resnet18_small
 
 from runner import EvalRunner, TargetRunner
-from utils import get_device_id
+from utils import get_device_id, test_accuracy
 from utils import collect
 
 from count_lipz import std_lipz, adv_lipz
@@ -36,7 +36,7 @@ def onlyeval(checkpoint_list, batch_size):
         T.Resize((32, 32)),
         T.ToTensor()
     ])
-   
+
     test_dataset = SVHN(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
@@ -49,6 +49,8 @@ def onlyeval(checkpoint_list, batch_size):
             print('\nEval on {}'.format(checkpoint_path))
         checkpoint = torch.load(checkpoint_path, map_location=device)
         model.load_state_dict(checkpoint.state_dict())
+
+        # test_accuracy(model, test_loader)
 
         criterion = nn.CrossEntropyLoss()
 
@@ -67,6 +69,20 @@ def onlyeval(checkpoint_list, batch_size):
         avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
         if torch.distributed.get_rank() == 0:
             print("Eval (FGSM) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # # Test on SPSA
+        # avg_loss, acc_sum, acc_count = runner.SPSA_eval("Eval SPSA", 100)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (SPSA) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # # Test on Square
+        # avg_loss, acc_sum, acc_count = runner.Square_eval("Eval Square", 100)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (Square) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
         # # Test on myPGD20
         # avg_loss, acc_sum, acc_count = runner.myPGD_eval("Eval PGD20", nb_iter=20)
@@ -110,7 +126,7 @@ def onlyeval(checkpoint_list, batch_size):
 
 if __name__ == '__main__':
 
-    batch_size = 512
+    batch_size = 128
     manualSeed = 2049
 
     random.seed(manualSeed)

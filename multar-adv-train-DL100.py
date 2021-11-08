@@ -69,7 +69,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     # )
 
-    attacker = LinfTarget(model, num_class=10, epsilon=8/255, step=4/255, iterations=10, random_start=True)
+    attacker = LinfTarget(model, num_class=10, epsilon=8/255, step=2/255, iterations=10, random_start=True)
 
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(train_dataset.class_num)

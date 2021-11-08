@@ -10,11 +10,13 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar100
 
-from model import resnet18_small as resnet18_small    # wideresnet34 as 
+from model import wideresnet34 as resnet18_small
+# from model import resnet18_small as resnet18_small    # wideresnet34 as 
 from runner import TargetRunner as TargetRunner
-from utils import get_device_id, Quick_MSELoss, Scheduler_List
+from utils import get_device_id, Quick_MSELoss, Scheduler_List, Onepixel
 
 from advertorch.attacks import LinfPGDAttack
+from attacker import LinfPGDTargetAttack as LinfTarget
 from tensorboardX import SummaryWriter
 
 def run(lr, epochs, batch_size, gamma=0.5):
@@ -31,6 +33,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
         # T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
+        Onepixel(32,32)
     ])
     test_transforms = T.Compose([
         T.Resize((32, 32)),
@@ -49,8 +52,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
     model = resnet18_small(n_class=train_dataset.class_num).to(device)
-    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
-        # find_unused_parameters = True, broadcast_buffers = False)
+    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, 
+        find_unused_parameters = True, broadcast_buffers = False)
     # model = nn.parallel.DataParallel(model, device_ids=[device_id], output_device=device_id)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
@@ -59,15 +62,16 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,570,580,590], gamma=0.25)
+    # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,570,580,590], gamma=0.25)
 
-    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
+    scheduler = Scheduler_List([scheduler1, scheduler2])
 
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
-    attacker = LinfPGDAttack(
+    '''attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=4, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
-    )
+    )'''
+    attacker = LinfTarget(model, num_class=100, epsilon=8/255, step=2/255, iterations=10, random_start=True)
 
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(100)
@@ -78,7 +82,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar100.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar100-LR.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar100-wideLRDL.pth')
         print('Save model.')
 
 if __name__ == '__main__':

@@ -65,7 +65,16 @@ class Quick_MSELoss(nn.Module):
         return torch.mean(torch.norm(input-target, dim=1), dim=0)
         # return torch.mean(torch.sqrt(torch.mean((input-target)**2, dim=1)), dim=0)
 
-    
+class TrueQuick_MSELoss(nn.Module):
+    def __init__(self, n_class, reduction='mean'):
+        super(Quick_MSELoss, self).__init__()
+        self.n_class = n_class
+        self.reduction = reduction
+
+    def forward(self, inputs, label):
+        inputs[label] -= 1
+        return torch.mean(torch.norm(inputs, dim=1), dim=0)
+
 class softCrossEntropy(nn.Module):
     def __init__(self, reduce=True):
         super(softCrossEntropy, self).__init__()

@@ -7,7 +7,7 @@ def brain_Rand(size, device):
 
 def btower_Rand(size, device):
     # rain blocker
-    return torch.rand(size,device=device)
+    return torch.rand(size,device=device)*2
 
 ## std - Rand
 def rain_Rand(size, device):

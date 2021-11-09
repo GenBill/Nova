@@ -180,7 +180,9 @@ if __name__ == '__main__':
     gamma_name = str(int(gamma*100))
     checkpoint_list = [
         # 'checkpoint/multar-plain-cifar10-LRDLDE.pth',
-        'checkpoint/multar-plain-cifar10-LRDLDR.pth',
+        # 'checkpoint/multar-plain-cifar10-LRDLDR.pth',
+        # 'checkpoint/multar-plain-cifar10-soda.pth',
+        'checkpoint_n/multar-plain-cifar10-small.pth'
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

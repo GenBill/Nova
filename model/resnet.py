@@ -22,9 +22,9 @@ class resnet18(nn.Module):
         self.encoder.apply(_init_weight)
     
     def forward(self, x):
-        x_norm = self.norm(x)
-        f = self.encoder(x_norm)
-        # f = self.encoder(x)
+        # x_norm = self.norm(x)
+        # f = self.encoder(x_norm)
+        f = self.encoder(x)
         y = self.classifier(f)
 
         return y

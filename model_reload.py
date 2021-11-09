@@ -28,11 +28,11 @@ def model_reload(checkpoint_list):
         model.load_state_dict(checkpoint.state_dict())
 
         if torch.distributed.get_rank() == 0:
-            torch.save(model.state_dict(), './checkpoint/dict/multar-plain-cifar10-LRDLsave.pth')
+            torch.save(model.state_dict(), './checkpoint/dict/multar-plain-cifar10-LRDLDEDSL2-8421-save.pth')
             print('Save model.')
 
 if __name__ == '__main__':
     checkpoint_list = [
-        'checkpoint/multar-plain-cifar10-LRDL.pth',
+        'checkpoint/multar-plain-cifar10-LRDLDEDSL2-8421.pth',
     ]
     model_reload(checkpoint_list)

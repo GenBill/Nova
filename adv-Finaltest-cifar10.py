@@ -182,7 +182,7 @@ if __name__ == '__main__':
         # 'checkpoint/multar-plain-cifar10-LRDLDE.pth',
         # 'checkpoint/multar-plain-cifar10-LRDLDR.pth',
         # 'checkpoint/multar-plain-cifar10-soda.pth',
-        'checkpoint_n/multar-plain-cifar10-small.pth'
+        'checkpoint/multar-plain-cifar10-LRDLDEDSL2-8421.pth'
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

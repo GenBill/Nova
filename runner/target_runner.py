@@ -452,6 +452,45 @@ class TargetRunner():
 
         return loss_meter.report()
     
+    def free3_multar_adv_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs_0, labels_0 in self.train_loader:
+
+            batchSize = labels_0.shape[0]
+            inputs_0 = inputs_0.to(self.device)
+            labels_0 = labels_0.to(self.device)
+
+            inputs_1, labels = plain_target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
+            inputs_2, _ = plain_target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
+
+            # Create inputs & labels
+            with torch.no_grad():
+                rand_vector = rain_Rand((batchSize, 1,1,1), device=self.device)
+                rand_vector_1 = tower_Rand((batchSize, 1,1,1), device=self.device)
+                rand_vector_2 = tower_Rand((batchSize, 1,1,1), device=self.device)
+                mix_1 = inputs_0 + ((inputs_1-inputs_0)*rand_vector*rand_vector_1 + (inputs_2-inputs_0)*(1-rand_vector)*rand_vector_2)
+
+            del inputs_0, labels_0, rand_vector, rand_vector_1, rand_vector_2
+
+            # print(inputs.requires_grad, inputs.shape)
+            labels = torch.cat((labels,labels,labels), dim=0)
+            inputs = torch.cat((mix_1,inputs_1,inputs_2), dim=0)
+            # outputs = self.model(inputs)
+            loss = soft_loss(self.model(inputs), labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+    
     def free_multar_adv_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
@@ -1113,7 +1152,7 @@ class TargetRunner():
         self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):
             if adv:
-                avg_loss = self.free_multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
+                avg_loss = self.free3_multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
             else:
                 avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
             avg_loss = collect(avg_loss, self.device)

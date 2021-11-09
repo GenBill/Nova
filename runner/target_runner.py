@@ -452,6 +452,49 @@ class TargetRunner():
 
         return loss_meter.report()
     
+    def free_multar_adv_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs_0, labels_0 in self.train_loader:
+
+            batchSize = labels_0.shape[0]
+            inputs_0 = inputs_0.to(self.device)
+            labels_0 = labels_0.to(self.device)
+
+            inputs_1, labels = plain_target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
+            inputs_2, _ = plain_target_attack(self.attacker, inputs_0, labels_0, self.num_class, self.device, self.gamma)
+
+            # Create inputs & labels
+            with torch.no_grad():
+                rand_vector = rain_Rand((batchSize, 1,1,1), device=self.device)
+                rand_vector_1 = tower_Rand((batchSize, 1,1,1), device=self.device)
+                rand_vector_2 = tower_Rand((batchSize, 1,1,1), device=self.device)
+                mix_1 = inputs_0 + ((inputs_1-inputs_0)*rand_vector*rand_vector_1 + (inputs_2-inputs_0)*(1-rand_vector)*rand_vector_2)
+                
+                rand_vector = rain_Rand((batchSize, 1,1,1), device=self.device)
+                rand_vector_1 = tower_Rand((batchSize, 1,1,1), device=self.device)
+                rand_vector_2 = tower_Rand((batchSize, 1,1,1), device=self.device)
+                mix_2 = inputs_0 + ((inputs_1-inputs_0)*rand_vector*rand_vector_1 + (inputs_2-inputs_0)*(1-rand_vector)*rand_vector_2)
+                
+            del inputs_0, labels_0, rand_vector, rand_vector_1, rand_vector_2
+
+            # print(inputs.requires_grad, inputs.shape)
+            labels = torch.cat((labels,labels,labels,labels), dim=0)
+            inputs = torch.cat((mix_1,mix_2,inputs_1,inputs_2), dim=0)
+            # outputs = self.model(inputs)
+            loss = soft_loss(self.model(inputs), labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
 
     def multar_adv_step(self, progress):
         self.model.train()
@@ -1064,6 +1107,31 @@ class TargetRunner():
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     
+    def free_multar_train(self, writer, adv=True):
+
+        ## Add a Writer
+        self.add_writer(writer, 0)
+        for epoch_idx in range(self.epochs):
+            if adv:
+                avg_loss = self.free_multar_adv_step("{}/{}".format(epoch_idx, self.epochs))
+            else:
+                avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                if adv:
+                    tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+                else:
+                    tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_writer(writer, epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+    
     def r_multar_train(self, writer, adv=True):
         # (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
         # avg_loss = collect(avg_loss, self.device)
@@ -1206,18 +1274,7 @@ class TargetRunner():
 
 
     def ap_multar_train(self, writer, adv=True):
-        # (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
-        # avg_loss = collect(avg_loss, self.device)
-        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        # if torch.distributed.get_rank() == 0:
-        #     tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
-        # avg_loss = collect(avg_loss, self.device)
-        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        # if torch.distributed.get_rank() == 0:
-        #     tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-        
         ## Add a Writer
         self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):
@@ -1238,22 +1295,6 @@ class TargetRunner():
             
             if self.scheduler is not None:
                 self.scheduler.step()
-
-            '''
-            if epoch_idx % self.eval_interval == (self.eval_interval-1):
-                avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-
-                avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-            
-            '''
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
 

@@ -64,9 +64,9 @@ class LinfPGDTargetAttack(nn.Module):
         pred = self.model(adv_x)
         
         ## L2 Loss PGD
-        atk_loss = torch.mean(torch.norm(pred-target, dim=1)-torch.norm(pred-faker, dim=1), dim=0)
+        # atk_loss = torch.mean(torch.norm(pred-target, dim=1)-torch.norm(pred-faker, dim=1), dim=0)
         
-        # atk_loss = nn.functional.cross_entropy(pred, target) - nn.functional.cross_entropy(pred, faker)
+        atk_loss = nn.functional.cross_entropy(pred, target) - nn.functional.cross_entropy(pred, faker)
         # atk_loss = self.criterion(self.model, adv_x, target) - self.criterion(self.model, adv_x, faker)
 
         self.model.zero_grad()
@@ -132,17 +132,14 @@ class LinfPGDTargetAttack(nn.Module):
         if self.random_start:
             perturbation = self.random_perturbation(x)
         
-        target = F.one_hot(target, num_classes=self.num_class).float()
-        faker = F.one_hot(faker, num_classes=self.num_class).float()
+        # target = F.one_hot(target, num_classes=self.num_class).float()
+        # faker = F.one_hot(faker, num_classes=self.num_class).float()
 
         with torch.enable_grad():
-            perturbation = self.fakerstep(x, perturbation, target, faker, 4)
-            perturbation = self.fakerstep(x, perturbation, target, faker, 4)
-            perturbation = self.fakerstep(x, perturbation, target, faker, 2)
-            perturbation = self.fakerstep(x, perturbation, target, faker, 2)
-            perturbation = self.fakerstep(x, perturbation, target, faker, 2)
-            perturbation = self.fakerstep(x, perturbation, target, faker, 2)
-            for i in range(self.iterations-6):
+            # perturbation = self.fakerstep(x, perturbation, target, faker, 4)
+            # perturbation = self.fakerstep(x, perturbation, target, faker, 2)
+            # perturbation = self.fakerstep(x, perturbation, target, faker, 2)
+            for i in range(self.iterations):
                 perturbation = self.fakerstep(x, perturbation, target, faker)
 
         self._model_unfreeze()

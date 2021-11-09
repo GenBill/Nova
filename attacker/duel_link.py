@@ -56,7 +56,7 @@ class LinfPGDTargetAttack(nn.Module):
 
         return perturbation
     
-    def fakerstep(self, x, perturbation, target, faker):
+    def fakerstep(self, x, perturbation, target, faker, times=1):
         # Running one step for 
         adv_x = x + perturbation
         adv_x.requires_grad = True
@@ -77,7 +77,7 @@ class LinfPGDTargetAttack(nn.Module):
         # Essential: delete the computation graph to save GPU ram
         adv_x.requires_grad = False
 
-        adv_x = adv_x.detach() + self.step * torch.sign(grad)
+        adv_x = adv_x.detach() + times * self.step * torch.sign(grad)
         perturbation = self.compute_perturbation(adv_x, x)
 
         return perturbation
@@ -135,16 +135,12 @@ class LinfPGDTargetAttack(nn.Module):
             perturbation = self.random_perturbation(x)
 
         with torch.enable_grad():
-            self.step *= 4
-            perturbation = self.fakerstep(x, perturbation, target, faker)
-            self.step /= 2
-            perturbation = self.fakerstep(x, perturbation, target, faker)
-            perturbation = self.fakerstep(x, perturbation, target, faker)
-            self.step /= 2
-            for i in range(self.iterations-3):
+            perturbation = self.fakerstep(x, perturbation, target, faker, 8)
+            perturbation = self.fakerstep(x, perturbation, target, faker, 4)
+            perturbation = self.fakerstep(x, perturbation, target, faker, 2)
+            perturbation = self.fakerstep(x, perturbation, target, faker, 2)
+            for i in range(self.iterations):
                 perturbation = self.fakerstep(x, perturbation, target, faker)
-            # for i in range(self.iterations):
-            #     perturbation = self.fakerstep(x, perturbation, target, faker)
 
         self._model_unfreeze()
         if self.training:

@@ -60,10 +60,10 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
-    # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[340,350], gamma=0.25)  # [200,230], gamma=0.25)
+    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,240], gamma=0.5)  # [200,230], gamma=0.25)
     # scheduler4 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[80, 140, 200, 240], gamma=0.32)
     # scheduler4 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 140, 180, 220], gamma=0.32)
-    scheduler = Scheduler_List([scheduler1, scheduler2])
+    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
     
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=10, random_start=True)
     attacker = LinfTarget(model, num_class=10, epsilon=16/255, step=2/255, iterations=20, random_start=True)
@@ -80,12 +80,12 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar100.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-LRDLDEDSL2.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-LRDLDEDSL2-8421.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.032
-    epochs = 240        # 320        # 240
+    epochs = 280        # 320        # 240
     batch_size = 64     # 128
     manualSeed = 2049   # 2077
     gamma = 0.

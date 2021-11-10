@@ -44,8 +44,6 @@ def run(lr, epochs, batch_size, gamma=0.5):
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
-    shadow_loader = 0
-
     test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
@@ -76,7 +74,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     criterion = Quick_MSELoss(100)
 
     runner = TargetRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.double_dl(writer, adv=True)
+    runner.double_dl_shower(writer)
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
@@ -87,7 +85,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 if __name__ == '__main__':
     lr = 0.032 *1.2
     epochs = 600
-    batch_size = 128    # 128
+    batch_size = 64    # 128
     manualSeed = 2049   # 2077
     gamma = 0.
 

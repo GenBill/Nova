@@ -582,7 +582,35 @@ class FrostRunner():
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
-    
+    def adv_lipz_eval(self):
+        self.model.eval()
+        all_Lipz = 0
+        sample_size = len(self.test_loader.dataset)
+
+        for example_0, labels in self.test_loader:
+            labels = labels.to(self.device)
+            example_0 = example_0.to(self.device)
+            example_1 = untarget_attack(self.attacker, example_0, labels)
+
+            # do a forward pass on the example
+            pred_0 = self.model(example_0)
+            pred_1 = self.model(example_1)
+            
+            diff_pred = pred_1 - pred_0
+            leng_diff_pred = torch.sum(torch.abs(diff_pred), dim=1)
+
+            diff_input = example_1 - example_0
+            leng_diff_input = torch.max(diff_input, dim=3).values
+            leng_diff_input = torch.max(leng_diff_input, dim=2).values
+            leng_diff_input = torch.max(leng_diff_input, dim=1).values
+            
+            # Count diff / rand_vector
+            Ret = leng_diff_pred / leng_diff_input
+            Local_Lipz = torch.sum(Ret, dim=0).item()
+            
+            all_Lipz += Local_Lipz / sample_size
+
+        return all_Lipz
     
     def wo_tar(self, writer):
         ## Add a Writer

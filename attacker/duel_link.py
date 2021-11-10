@@ -89,8 +89,8 @@ class LinfPGDTargetAttack(nn.Module):
             param.requires_grad=True
 
     def random_perturbation(self, x):
-        perturbation = (torch.rand_like(x)*2-1).to(device=self.device)
-        perturbation = self.compute_perturbation(x+perturbation, x)
+        perturbation = self.epsilon * (torch.rand_like(x)*2-1).to(device=self.device)
+        # perturbation = self.compute_perturbation(x+perturbation, x)
 
         return perturbation
 

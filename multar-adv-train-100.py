@@ -40,7 +40,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True, max_n_per_class=100)
+    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
@@ -60,8 +60,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4, alpha=0.99, eps=1e-08, centered=False)
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.988)
-    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[420,450], gamma=0.5)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,580], gamma=0.5)
 
     scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
 
@@ -86,7 +86,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
 
 if __name__ == '__main__':
     lr = 0.032 *1.2
-    epochs = 480
+    epochs = 600
     batch_size = 128    # 128
     manualSeed = 2049   # 2077
     gamma = 0.

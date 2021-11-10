@@ -284,7 +284,7 @@ class TargetRunner():
     def __init__(self, epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, num_class, device, gamma=0.5):
         self.device = device
         self.epochs = epochs
-        self.eval_interval = 10
+        self.eval_interval = 20
 
         self.model = model
         self.train_loader = train_loader
@@ -1127,22 +1127,6 @@ class TargetRunner():
             
             if self.scheduler is not None:
                 self.scheduler.step()
-
-            '''
-            if epoch_idx % self.eval_interval == (self.eval_interval-1):
-                avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-
-                avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-            
-            '''
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     

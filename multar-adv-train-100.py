@@ -12,7 +12,7 @@ from dataset import Cifar100
 
 from model import wideresnet34 as resnet18_small
 # from model import resnet18_small as resnet18_small    # wideresnet34 as 
-from runner import TargetRunner as TargetRunner
+from runner import FrostRunner as TargetRunner
 from utils import get_device_id, Quick_MSELoss, Scheduler_List, Onepixel
 
 from advertorch.attacks import LinfPGDAttack
@@ -75,8 +75,8 @@ def run(lr, epochs, batch_size, gamma=0.5):
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(100)
 
-    runner = TargetRunner(epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device, gamma)
-    runner.multar_train(writer, adv=True)
+    runner = TargetRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
+    runner.double_dl(writer, adv=True)
 
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))

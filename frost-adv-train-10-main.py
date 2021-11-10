@@ -73,7 +73,7 @@ def run(lr, epochs, batch_size):
 
     runner = TargetRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 1
-    runner.double_dl(writer)
+    runner.double_dl_writer(writer)
 
     if torch.distributed.get_rank() == 0:
         torch.save(model.cpu(), './checkpoint/frost-plain-cifar10-DL.pth')

@@ -80,7 +80,7 @@ def run(lr, epochs, batch_size, gamma=0.5):
     if torch.distributed.get_rank() == 0:
         gamma_name = str(int(gamma*100))
         # torch.save(model.cpu(), './checkpoint/multar-targetmix-'+ gamma_name +'-cifar100.pth')
-        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-half.pth')
+        torch.save(model.cpu(), './checkpoint/multar-plain-cifar10-half3.pth')
         print('Save model.')
 
 if __name__ == '__main__':

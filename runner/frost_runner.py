@@ -67,6 +67,11 @@ class FrostRunner():
             rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
         )
 
+        self.lipz_attacker = LinfPGDAttack(
+            self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=100, 
+            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+        )
+
         self.num_class = num_class
 
         self.desc = lambda status, progress: f"{status}: {progress}"
@@ -94,14 +99,14 @@ class FrostRunner():
             tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
 
     def add_writer(self, writer, epoch_idx):
-        # # train test
-        # avg_loss, acc_sum, acc_count = self.train_eval("{}/{}".format(epoch_idx, self.epochs))
-        # avg_loss = collect(avg_loss, self.device)
-        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        # if torch.distributed.get_rank() == 0:
-        #     tqdm.write("Eval (Train) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-        #     writer.add_scalar("train_Acc", avg_acc, epoch_idx)
-        #     writer.add_scalar("train_Loss", avg_loss, epoch_idx)
+        # train test
+        avg_loss, acc_sum, acc_count = self.train_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Train) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            # writer.add_scalar("train_Acc", avg_acc, epoch_idx)
+            # writer.add_scalar("train_Loss", avg_loss, epoch_idx)
         
         # clean test
         avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
@@ -590,7 +595,7 @@ class FrostRunner():
         for example_0, labels in self.test_loader:
             labels = labels.to(self.device)
             example_0 = example_0.to(self.device)
-            example_1 = untarget_attack(self.attacker, example_0, labels)
+            example_1 = untarget_attack(self.lipz_attacker, example_0, labels)
 
             # do a forward pass on the example
             pred_0 = self.model(example_0)
@@ -812,6 +817,26 @@ class FrostRunner():
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     
+    def double_tar_writer(self, writer):
+        ## Add a Writer
+        self.add_writer(0)
+        for epoch_idx in range(self.epochs):
+
+            avg_loss = self.double_tar_step("{}/{}".format(epoch_idx, self.epochs))
+
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_writer(epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+    
     def double_untar(self, writer):
         ## Add a Writer
         self.add_shower(0)
@@ -832,7 +857,7 @@ class FrostRunner():
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     
-    def double_dl_shower(self, writer):
+    def double_dl(self, writer):
         ## Add a Writer
         self.add_shower(0)
         for epoch_idx in range(self.epochs):
@@ -852,7 +877,7 @@ class FrostRunner():
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
 
-    def double_dl(self, writer):
+    def double_dl_writer(self, writer):
         ## Add a Writer
         self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):

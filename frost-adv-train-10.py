@@ -72,9 +72,10 @@ def run(lr, epochs, batch_size):
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.double_tar_writer(writer)
+    runner.eval_interval = 1
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/frost/vertex_tar_DL.pth')
+        torch.save(model.state_dict(), './checkpoint/frost/double_tar.pth')
         print('Save model.')
 
 if __name__ == '__main__':

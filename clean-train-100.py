@@ -61,10 +61,10 @@ def run(lr, epochs, batch_size):
     criterion = nn.CrossEntropyLoss()
 
     runner = DistRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device)
-    runner.train(adv=True)
+    runner.train(adv=False)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/adv-final-cifar100.pth')
+        torch.save(model.state_dict(), './checkpoint/clean-final-cifar100.pth')
         print('Save model.')
 
 if __name__ == '__main__':

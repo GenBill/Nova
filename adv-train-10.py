@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar100, Cifar100
 
-from model import wideresnet34 as resnet18_small
+from model import PreActResNet18
 from runner import LinfRunner as DistRunner
 from utils import get_device_id
 
@@ -30,12 +30,10 @@ def run(lr, epochs, batch_size):
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
-        # T.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
     ])
     test_transforms = T.Compose([
         T.Resize((32, 32)),
         T.ToTensor(),
-        # T.Normalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)),
     ])
 
     train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
@@ -46,7 +44,7 @@ def run(lr, epochs, batch_size):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
-    model = resnet18_small(n_class=train_dataset.class_num).to(device)
+    model = PreActResNet18(num_classes=train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, 
         find_unused_parameters = True, broadcast_buffers = False)
 
@@ -64,7 +62,7 @@ def run(lr, epochs, batch_size):
     runner.train(adv=True)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/adv-final-cifar100.pth')
+        torch.save(model.state_dict(), './checkpoint/adv-final-cifar10.pth')
         print('Save model.')
 
 if __name__ == '__main__':
@@ -77,5 +75,5 @@ if __name__ == '__main__':
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    os.environ['DATAROOT'] = '~/Datasets/cifar100'
+    os.environ['DATAROOT'] = '~/Datasets/cifar10'
     run(lr, epochs, batch_size)

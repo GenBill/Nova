@@ -81,12 +81,12 @@ def onlyeval(checkpoint_list, batch_size):
         if torch.distributed.get_rank() == 0:
             print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on CW20 & CW100
-        # avg_loss, acc_sum, acc_count = runner.CW_eval("Eval CW20", search_steps=4, nb_iter=20)
-        # avg_loss = collect(avg_loss, runner.device)
-        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        # if torch.distributed.get_rank() == 0:
-        #     print("Eval (CW20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # Test on CW
+        avg_loss, acc_sum, acc_count = runner.CW_eval("Eval CW", search_steps=1, nb_iter=100)
+        avg_loss = collect(avg_loss, runner.device)
+        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            print("Eval (CW20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
             
         this_lipz = runner.Lipz_eval(nb_iter=100)
         if torch.distributed.get_rank() == 0:
@@ -100,15 +100,8 @@ if __name__ == '__main__':
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    gamma = 0.3
-    gamma_name = str(int(gamma*100))
     checkpoint_list = [
         'checkpoint/multar-plain-cifar10-LRDL.pth',
-        # './checkpoint/adv-prime-cifar10.pth',
-        # './checkpoint/Vertexmix-soft25-cifar10.pth',
-        # './checkpoint/adv-final-cifar10.pth',
-        # './checkpoint/multar-EdgeMix-0-cifar10.pth',
-        # './checkpoint/target-pgd-MSE-cifar10.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

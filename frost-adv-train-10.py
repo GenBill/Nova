@@ -75,7 +75,7 @@ def run(lr, epochs, batch_size):
     runner.eval_interval = 1
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/frost/double_tar.pth')
+        torch.save(model.state_dict(), './checkpoint/double_tar.pth')
         print('Save model.')
 
 if __name__ == '__main__':

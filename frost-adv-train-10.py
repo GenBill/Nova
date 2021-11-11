@@ -71,8 +71,8 @@ def run(lr, epochs, batch_size):
     criterion = Quick_MSELoss(10)
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.double_tar_writer(writer)
     runner.eval_interval = 1
+    runner.double_tar_writer(writer)
 
     if torch.distributed.get_rank() == 0:
         torch.save(model.state_dict(), './checkpoint/double_tar.pth')

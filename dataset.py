@@ -237,7 +237,7 @@ class SVHN(Dataset):
         self.subset_indices = np.where(self.subset_mask != -1)[0]
     
     def __getitem__(self, idx):
-        # return self.data.__getitem__(idx)
+        return self.data.__getitem__(idx)
         idx_in_ori_data = self.subset_indices[idx]
         return self.data.__getitem__(idx_in_ori_data)
 

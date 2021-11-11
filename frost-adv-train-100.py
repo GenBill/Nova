@@ -9,7 +9,7 @@ from torchvision import datasets
 from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
-from dataset import Cifar10
+from dataset import Cifar100
 
 from model import wideresnet34
 from runner import FrostRunner
@@ -38,13 +38,13 @@ def run(lr, epochs, batch_size):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
 
-    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
+    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
     model = wideresnet34(n_class=train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, 
@@ -69,7 +69,7 @@ def run(lr, epochs, batch_size):
     attacker = attacker_tar
 
     # criterion = nn.CrossEntropyLoss()
-    criterion = Quick_MSELoss(10)
+    criterion = Quick_MSELoss(100)
 
     runner = FrostRunner(epochs-200, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.double_tar(writer)

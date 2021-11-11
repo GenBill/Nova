@@ -66,17 +66,17 @@ def run(lr, epochs, batch_size):
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=True, 
     )
 
-    attacker = attacker_DL
+    attacker = attacker_tar
 
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(10)
 
     runner = TargetRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.eval_interval = 1
-    runner.double_dl_writer(writer)
+    runner.eval_interval = 10
+    runner.double_dl(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.cpu(), './checkpoint/frost-plain-cifar10-DL.pth')
+        torch.save(model.cpu(), './checkpoint/frost-plain-cifar10-tar.pth')
         print('Save model.')
 
 if __name__ == '__main__':
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     batch_size = 64    # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
-    writer = SummaryWriter('./runs/cifar10_Final')
+    writer = SummaryWriter('./runs/cifar10_double_tar')
 
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)

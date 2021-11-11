@@ -169,7 +169,7 @@ def onlyeval(checkpoint_list, batch_size):
 
 if __name__ == '__main__':
 
-    batch_size = 64
+    batch_size = 128
     manualSeed = 2049
 
     random.seed(manualSeed)
@@ -182,7 +182,8 @@ if __name__ == '__main__':
         # 'checkpoint/multar-plain-cifar10-LRDLDE.pth',
         # 'checkpoint/multar-plain-cifar10-LRDLDR.pth',
         # 'checkpoint/multar-plain-cifar10-soda.pth',
-        'checkpoint/multar-plain-cifar10-LRDLDEDSL2-8421.pth'
+        # 'checkpoint/multar-plain-cifar10-LRDLDEDSL2-8421.pth'
+        'checkpoint/frost-plain-cifar10-DL.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

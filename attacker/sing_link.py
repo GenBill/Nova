@@ -57,53 +57,6 @@ class LinfPGD(nn.Module):
 
         return perturbation
     
-    def double_onestep(self, x, perturbation, target_0, target_1):
-        # Running one step for 
-        adv_x = x + perturbation
-        adv_x.requires_grad = True
-        
-        # atk_loss = self.criterion(self.model, adv_x, target_0) + self.criterion(self.model, adv_x, target_1)
-        this_output = self.model(adv_x)
-        atk_loss = nn.CrossEntropyLoss()(this_output, target_0) + nn.CrossEntropyLoss()(this_output, target_1)
-
-        self.model.zero_grad()
-        atk_loss.backward()
-
-        grad = adv_x.grad
-        # Essential: delete the computation graph to save GPU ram
-        adv_x.requires_grad = False
-
-        if self.targeted:
-            adv_x = adv_x.detach() - self.step * torch.sign(grad)
-        else:
-            adv_x = adv_x.detach() + self.step * torch.sign(grad)
-        perturbation = self.compute_perturbation(adv_x, x)
-
-        return perturbation
-
-    def mesa_onestep(self, x, perturbation, target):
-        # Running one step for 
-        adv_x = x + perturbation
-        adv_x.requires_grad = True
-        
-        # atk_loss = self.criterion(self.model, adv_x, target_0) + self.criterion(self.model, adv_x, target_1)
-        this_output = self.model(adv_x)
-        atk_loss = nn.MSELoss()(this_output, target)
-
-        self.model.zero_grad()
-        atk_loss.backward()
-
-        grad = adv_x.grad
-        # Essential: delete the computation graph to save GPU ram
-        adv_x.requires_grad = False
-
-        if self.targeted:
-            adv_x = adv_x.detach() - self.step * torch.sign(grad)
-        else:
-            adv_x = adv_x.detach() + self.step * torch.sign(grad)
-        perturbation = self.compute_perturbation(adv_x, x)
-
-        return perturbation
 
     def _model_freeze(self):
         for param in self.model.parameters():
@@ -114,10 +67,11 @@ class LinfPGD(nn.Module):
             param.requires_grad=True
 
     def random_perturbation(self, x):
-        perturbation = torch.rand_like(x).to(device=self.device)
-        perturbation = self.compute_perturbation(x+perturbation, x)
+        return self.epsilon * (torch.rand_like(x)*2-1).to(device=self.device)
+        # perturbation = torch.rand_like(x).to(device=self.device)
+        # perturbation = self.compute_perturbation(x+perturbation, x)
 
-        return perturbation
+        # return perturbation
 
     def attack(self, x, target):
         x = x.to(self.device)
@@ -141,50 +95,8 @@ class LinfPGD(nn.Module):
 
         return x + perturbation
     
-    def double_attack(self, x, target_0, target_1):
-        x = x.to(self.device)
-        target_0 = target_0.to(self.device)
-        target_1 = target_1.to(self.device)
-
-        self.training = self.model.training
-        self.model.eval()
-        self._model_freeze()
-
-        perturbation = torch.zeros_like(x).to(self.device)
-        if self.random_start:
-            perturbation = self.random_perturbation(x)
-
-        with torch.enable_grad():
-            for i in range(self.iterations):
-                perturbation = self.double_onestep(x, perturbation, target_0, target_1)
-
-        self._model_unfreeze()
-        if self.training:
-            self.model.train()
-
-        return x + perturbation
-    
-    def mesa_attack(self, x, target):
-        x = x.to(self.device)
-        target = target.to(self.device)
-
-        self.training = self.model.training
-        self.model.eval()
-        self._model_freeze()
-
-        perturbation = torch.zeros_like(x).to(self.device)
-        if self.random_start:
-            perturbation = self.random_perturbation(x)
-
-        with torch.enable_grad():
-            for i in range(self.iterations):
-                perturbation = self.mesa_onestep(x, perturbation, target)
-        
-        self._model_unfreeze()
-        if self.training:
-            self.model.train()
-
-        return x + perturbation
+    def perturb(self, x, target):
+        return self.attack(x, target)
 
 
 class L2PGD(nn.Module):

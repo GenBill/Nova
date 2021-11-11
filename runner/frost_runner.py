@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from tensorboardX import SummaryWriter
 import copy
 
+from attacker import LinfPGD
 from advertorch.attacks import LinfPGDAttack
 
 from runner.my_Rand import btower_Rand as tower_Rand
@@ -61,16 +62,15 @@ class FrostRunner():
         self.scheduler = scheduler
         
         self.attacker = attacker
-
-        self.std_attacker = LinfPGDAttack(
-            self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=20, 
-            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
-        )
-
-        self.lipz_attacker = LinfPGDAttack(
-            self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=100, 
-            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
-        )
+        self.std_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=20, random_start=True, targeted=False)
+        self.lipz_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=100, random_start=True, targeted=False)
+        
+        # self.std_attacker = LinfPGDAttack(
+        #     self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=20, 
+        #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, )
+        # self.lipz_attacker = LinfPGDAttack(
+        #     self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=100, 
+        #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, )
 
         self.num_class = num_class
 
@@ -819,7 +819,7 @@ class FrostRunner():
     
     def double_tar_writer(self, writer):
         ## Add a Writer
-        self.add_writer(0)
+        self.add_writer(writer)
         for epoch_idx in range(self.epochs):
 
             avg_loss = self.double_tar_step("{}/{}".format(epoch_idx, self.epochs))
@@ -830,7 +830,7 @@ class FrostRunner():
             
             ## Add a Writer
             if epoch_idx % self.eval_interval == (self.eval_interval-1):
-                self.add_writer(epoch_idx+1)
+                self.add_writer(writer, epoch_idx+1)
             
             if self.scheduler is not None:
                 self.scheduler.step()

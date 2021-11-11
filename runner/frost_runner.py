@@ -819,7 +819,7 @@ class FrostRunner():
     
     def double_tar_writer(self, writer):
         ## Add a Writer
-        self.add_writer(writer)
+        self.add_writer(writer, 0)
         for epoch_idx in range(self.epochs):
 
             avg_loss = self.double_tar_step("{}/{}".format(epoch_idx, self.epochs))

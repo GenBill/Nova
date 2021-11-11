@@ -36,7 +36,7 @@ class QLinfPGD(nn.Module):
                 output = self.model(x_adv)
                 self.model.zero_grad()
                 with torch.enable_grad():
-                    loss_adv = nn.CrossEntropyLoss(reduction="sum")(output, target)
+                    loss_adv = nn.functional.cross_entropy(output, target)
                 loss_adv.backward()
                 eta = self.step * x_adv.grad.sign()
                 x_adv = x_adv.detach() - eta
@@ -49,7 +49,7 @@ class QLinfPGD(nn.Module):
                 output = self.model(x_adv)
                 self.model.zero_grad()
                 with torch.enable_grad():
-                    loss_adv = nn.CrossEntropyLoss(reduction="sum")(output, target)
+                    loss_adv = nn.functional.cross_entropy(output, target)
                 loss_adv.backward()
                 eta = self.step * x_adv.grad.sign()
                 x_adv = x_adv.detach() + eta

@@ -24,7 +24,7 @@ class TransRunner():
 
         self.desc = lambda status, progress: f"{status}: {progress}"
     
-    def Trans_eval(self, progress, nb_iter=20):
+    def Trans_PGD(self, progress, nb_iter=20):
         self.model_0.eval()
         self.model_1.eval()
         accuracy_meter = AverageMeter()

@@ -70,11 +70,11 @@ def onlyeval(checkpoint_list, batch_size):
             runner = TransRunner(model_0, model_1, test_dataset.class_num, test_loader, criterion, device)
 
             # Test on PGD20
-            avg_loss, acc_sum, acc_count = runner.Trans_eval("Trans Eval", nb_iter=2)#0)
+            avg_loss, acc_sum, acc_count = runner.Trans_PGD("Trans PGD", nb_iter=20)
             avg_loss = collect(avg_loss, runner.device)
             avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
             if torch.distributed.get_rank() == 0:
-                print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+                print("Trans PGD , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
 
 if __name__ == '__main__':
@@ -87,7 +87,8 @@ if __name__ == '__main__':
     # writer = SummaryWriter('./runs/void')
 
     checkpoint_list = [
-        'checkpoint/frost-plain-cifar10-DL.pth',
+        'checkpoint/adv-final-cifar10.pth',
+        'checkpoint/clean-final-cifar10.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

@@ -96,5 +96,8 @@ class WideResNet(nn.Module):
 # def wideresnet18(n_class=10, mean=None, std=None):
 #     return WideResNet(depth=18, num_classes=n_class)
 
+def wideresnet28(n_class=10, mean=None, std=None):
+    return WideResNet(depth=28, num_classes=n_class)
+
 def wideresnet34(n_class=10, mean=None, std=None):
     return WideResNet(depth=34, num_classes=n_class)

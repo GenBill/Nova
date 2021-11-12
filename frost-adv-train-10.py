@@ -53,15 +53,15 @@ def run(lr, epochs, batch_size):
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
-    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,240], gamma=0.5)
+    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
     scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
     
     attacker_untar = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
     attacker_tar = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=True, 
     )
 
@@ -80,7 +80,7 @@ def run(lr, epochs, batch_size):
 
 if __name__ == '__main__':
     lr = 0.032
-    epochs = 280        # 320        # 240
+    epochs = 240        # 320        # 240
     batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 

@@ -20,6 +20,10 @@ def soft_loss(pred, soft_targets):
     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
     return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
 
+# def soft_loss(pred, soft_targets):
+#     # logsoftmax = nn.LogSoftmax(dim=1)
+#     return torch.mean(torch.sum(-soft_targets * F.log_softmax(pred, dim=1), dim=1))
+
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()

@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar100
 
-from model import PreActResNet18
+from model import resnet18_small
 from runner import FrostRunner, LinfRunner
 from utils import get_device_id, Quick_MSELoss, Scheduler_List, Onepixel
 
@@ -46,7 +46,7 @@ def run(lr, epochs, batch_size):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
 
-    model = PreActResNet18(num_classes=train_dataset.class_num).to(device)
+    model = resnet18_small(train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
         # find_unused_parameters = True, broadcast_buffers = False)
     
@@ -64,10 +64,11 @@ def run(lr, epochs, batch_size):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
-    scheduler = Scheduler_List([scheduler1, scheduler2])
+    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
+    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
     criterion = Quick_MSELoss(100)
 
-    runner = LinfRunner(200, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=train_dataset.class_num)
+    runner = LinfRunner(240, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=train_dataset.class_num)
     runner.train(adv=False)
     
     

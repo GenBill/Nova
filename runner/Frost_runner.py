@@ -439,10 +439,9 @@ class FrostRunner():
             adv_inputs_1 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
             adv_inputs_2 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
             _model_unfreeze(self.model)
-            adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
-            adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
-
-            inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
+            
+            adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
+            inputs = Plain_Mix(adv_inputs_1, inputs, self.device)
             labels = F.one_hot(labels, self.num_class).float()
             
             outputs = self.model(inputs)
@@ -473,12 +472,11 @@ class FrostRunner():
             adv_inputs_1 = untarget_attack(self.attacker, inputs, labels)
             adv_inputs_2 = untarget_attack(self.attacker, inputs, labels)
             _model_unfreeze(self.model)
-            adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
-            adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
 
-            inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
+            adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
+            inputs = Plain_Mix(adv_inputs_1, inputs, self.device)
             labels = F.one_hot(labels, self.num_class).float()
-            
+
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)
             pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))

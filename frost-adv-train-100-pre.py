@@ -49,13 +49,6 @@ def run(lr, epochs, batch_size):
     model = PreActResNet18(num_classes=train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
         # find_unused_parameters = True, broadcast_buffers = False)
-
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10,100], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,580], gamma=0.5)
-    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
     
     attacker_untar = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -68,29 +61,28 @@ def run(lr, epochs, batch_size):
 
     attacker = attacker_tar
 
-    # criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
+    scheduler = Scheduler_List([scheduler1, scheduler2])
     criterion = Quick_MSELoss(100)
 
-    runner = LinfRunner(100, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=train_dataset.class_num)
+    runner = LinfRunner(200, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=train_dataset.class_num)
     runner.train(adv=False)
-
-    if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/cifar100_double_tar.pth')
-        print('Save model 100.')
     
-    runner = FrostRunner(epochs-200, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
+    
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,580], gamma=0.5)
+    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
+    
+    runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:
         torch.save(model.state_dict(), './checkpoint/cifar100_double_tar.pth')
-        print('Save model 500.')
-
-    runner = FrostRunner(100, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.double_tar(writer)
-
-    if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/cifar100_double_tar.pth')
-        print('Save model 600.')
+        print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.032*1.2

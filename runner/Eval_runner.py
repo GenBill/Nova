@@ -14,6 +14,14 @@ from advertorch.attacks import LinfSPSAAttack
 from attacker import my_APGDAttack_targeted
 from autoattack.square import SquareAttack
 
+def _model_freeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=False
+
+def _model_unfreeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=True
+
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
@@ -31,6 +39,7 @@ class EvalRunner():
 
     def clean_eval(self, progress):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
         with torch.no_grad():
@@ -50,10 +59,12 @@ class EvalRunner():
                 pbar.update(1)
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
     def FGSM_eval(self, progress):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -77,10 +88,12 @@ class EvalRunner():
 
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
     def PGD_eval(self, progress, nb_iter=20):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -107,10 +120,12 @@ class EvalRunner():
 
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
     def myPGD_eval(self, progress, nb_iter=20):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -137,10 +152,12 @@ class EvalRunner():
 
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
     def CW_eval(self, progress, search_steps=1, nb_iter=100):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -164,10 +181,12 @@ class EvalRunner():
 
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
     def Lipz_eval(self, nb_iter=100):
         self.model.eval()
+        _model_freeze(self.model)
         attacker = atk_PGD(
             self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
             rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
@@ -199,10 +218,12 @@ class EvalRunner():
             
             all_Lipz += Local_Lipz / sample_size
 
+        _model_unfreeze(self.model)
         return all_Lipz
 
     def Square_eval(self, progress, nb_iter=20):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -227,10 +248,12 @@ class EvalRunner():
 
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
     def SPSA_eval(self, progress, nb_iter=20):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -258,4 +281,5 @@ class EvalRunner():
 
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)

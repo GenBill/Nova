@@ -3,6 +3,14 @@ from utils import AverageMeter
 import torch
 from utils import collect
 
+def _model_freeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=False
+
+def _model_unfreeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=True
+
 def target_attack(adversary, inputs, true_target, num_class, device):
     target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)
     # Ensure target != true_target
@@ -60,7 +68,9 @@ class LinfRunner():
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
+            _model_freeze(self.model)
             data = untarget_attack(self.attacker, data, target)
+            _model_unfreeze(self.model)
 
             output = self.model(data)
             loss = self.criterion(output, target)
@@ -82,7 +92,9 @@ class LinfRunner():
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
+            _model_freeze(self.model)
             data = target_attack(self.attacker, data, target, self.num_class, self.device)
+            _model_unfreeze(self.model)
 
             output = self.model(data)
             loss = self.criterion(output, target)
@@ -153,7 +165,9 @@ class LinfRunner():
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):
             data, target = data.to(self.device), target.to(self.device)
+            _model_freeze(self.model)
             data = untarget_attack(self.attacker, data, target)
+            _model_unfreeze(self.model)
             
             with torch.no_grad():
                 output = self.model(data)
@@ -178,7 +192,9 @@ class LinfRunner():
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval_2", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):
             data, target = data.to(self.device), target.to(self.device)
+            _model_freeze(self.model)
             data = untarget_attack(self.attacker, data, target)
+            _model_unfreeze(self.model)
 
             with torch.no_grad():
                 output = torch.softmax(self.model(data), dim=1)

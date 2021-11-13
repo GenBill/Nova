@@ -9,6 +9,14 @@ from tqdm import tqdm
 
 from autoattack import AutoAttack
 
+def model_freeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=False
+
+def model_unfreeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=True
+
 class AverageMeter():
     """Computes and stores the average and current value"""
     def __init__(self):

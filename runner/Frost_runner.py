@@ -16,6 +16,14 @@ from advertorch.attacks import LinfPGDAttack
 from runner.my_Rand import btower_Rand as tower_Rand
 from runner.my_Rand import brain_Rand as rain_Rand
 
+def _model_freeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=False
+
+def _model_unfreeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=True
+
 def soft_loss(pred, soft_targets):
     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
     return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
@@ -157,7 +165,9 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             inputs = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
+            _model_unfreeze(self.model)
             labels = F.one_hot(labels, self.num_class).float()
             
             outputs = self.model(inputs)
@@ -184,7 +194,9 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             inputs = untarget_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             labels = F.one_hot(labels, self.num_class).float()
             
             outputs = self.model(inputs)
@@ -211,7 +223,9 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             inputs = duelink_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             labels = F.one_hot(labels, self.num_class).float()
             
             outputs = self.model(inputs)
@@ -238,7 +252,9 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
+            _model_unfreeze(self.model)
             inputs = Plain_Mix(adv_inputs, inputs, self.device)
             labels = F.one_hot(labels, self.num_class).float()
             
@@ -266,7 +282,9 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs = untarget_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             inputs = Plain_Mix(adv_inputs, inputs, self.device)
             labels = F.one_hot(labels, self.num_class).float()
             
@@ -294,7 +312,9 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs = duelink_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             inputs = Plain_Mix(adv_inputs, inputs, self.device)
             labels = F.one_hot(labels, self.num_class).float()
             
@@ -322,8 +342,10 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs_1 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
             adv_inputs_2 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
+            _model_unfreeze(self.model)
             inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
             labels = F.one_hot(labels, self.num_class).float()
             
@@ -351,8 +373,10 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs_1 = untarget_attack(self.attacker, inputs, labels)
             adv_inputs_2 = untarget_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
             labels = F.one_hot(labels, self.num_class).float()
             
@@ -380,8 +404,10 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs_1 = duelink_attack(self.attacker, inputs, labels)
             adv_inputs_2 = duelink_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
             labels = F.one_hot(labels, self.num_class).float()
             
@@ -409,8 +435,10 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs_1 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
             adv_inputs_2 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
+            _model_unfreeze(self.model)
             adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
             adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
 
@@ -441,8 +469,10 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs_1 = untarget_attack(self.attacker, inputs, labels)
             adv_inputs_2 = untarget_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
             adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
 
@@ -473,8 +503,10 @@ class FrostRunner():
             inputs = inputs.to(self.device)
             labels = labels.to(self.device)
             
+            _model_freeze(self.model)
             adv_inputs_1 = duelink_attack(self.attacker, inputs, labels)
             adv_inputs_2 = duelink_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
             adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
             adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
 
@@ -543,6 +575,7 @@ class FrostRunner():
 
     def adv_eval(self, progress):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -550,7 +583,7 @@ class FrostRunner():
         for batch_idx, (data, target) in enumerate(self.test_loader):
             data, target = data.to(self.device), target.to(self.device)
             data = untarget_attack(self.attacker, data, target)
-            
+
             with torch.no_grad():
                 output = self.model(data)
                 loss = self.criterion(output, target)
@@ -564,10 +597,12 @@ class FrostRunner():
                 pbar.update(1)
         pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
     def std_adv_eval(self, progress):
         self.model.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -575,7 +610,7 @@ class FrostRunner():
         for batch_idx, (data, target) in enumerate(self.test_loader):
             data, target = data.to(self.device), target.to(self.device)
             data = untarget_attack(self.std_attacker, data, target)
-            
+
             with torch.no_grad():
                 output = self.model(data)
                 loss = self.criterion(output, target)
@@ -588,11 +623,14 @@ class FrostRunner():
                 
                 pbar.update(1)
         pbar.close()
-        
+
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
     def adv_lipz_eval(self):
         self.model.eval()
+        _model_freeze(self.model)
+
         all_Lipz = 0
         sample_size = len(self.test_loader.dataset)
 
@@ -600,7 +638,7 @@ class FrostRunner():
             labels = labels.to(self.device)
             example_0 = example_0.to(self.device)
             example_1 = untarget_attack(self.lipz_attacker, example_0, labels)
-
+            
             # do a forward pass on the example
             pred_0 = self.model(example_0)
             pred_1 = self.model(example_1)
@@ -618,7 +656,8 @@ class FrostRunner():
             Local_Lipz = torch.sum(Ret, dim=0).item()
             
             all_Lipz += Local_Lipz / sample_size
-
+        
+        _model_unfreeze(self.model)
         return all_Lipz
     
     def wo_tar(self, writer):

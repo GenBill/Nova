@@ -8,6 +8,14 @@ from utils import collect
 
 from advertorch.attacks import LinfPGDAttack as atk_PGD
 
+def _model_freeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=False
+
+def _model_unfreeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=True
+
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
@@ -27,6 +35,7 @@ class TransRunner():
     def Trans_PGD(self, progress, nb_iter=20):
         self.model_0.eval()
         self.model_1.eval()
+        _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
@@ -53,5 +62,6 @@ class TransRunner():
 
             pbar.close()
         
+        _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     

@@ -46,13 +46,13 @@ def onlyeval(checkpoint_list, figname_list, batch_size, num_class, writer):
     device = f'cuda:{device_id}'
 
     test_transforms = T.Compose([
-        T.Resize((32, 32)),
+        # T.Resize((32, 32)),
         T.ToTensor()
     ])
     
     test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=12, pin_memory=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=0, pin_memory=False)
 
     model = resnet18_small(n_class=num_class).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)

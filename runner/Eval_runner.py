@@ -195,7 +195,7 @@ class EvalRunner():
         all_Lipz = 0
         sample_size = len(self.test_loader.dataset)
 
-        for example_0, labels in tqdm(self.test_loader):
+        for example_0, labels in self.test_loader:
             labels = labels.to(self.device)
             example_0 = example_0.to(self.device)
             example_1 = attacker.perturb(example_0, labels).detach()

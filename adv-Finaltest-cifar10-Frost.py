@@ -39,7 +39,7 @@ def onlyeval(checkpoint_list, batch_size):
     
     test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=0, pin_memory=False)
 
     model = resnet18_small(test_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
@@ -97,7 +97,7 @@ def onlyeval(checkpoint_list, batch_size):
 
 if __name__ == '__main__':
 
-    batch_size = 128
+    batch_size = 256
     manualSeed = 2049
 
     random.seed(manualSeed)

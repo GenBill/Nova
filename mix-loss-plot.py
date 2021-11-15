@@ -21,6 +21,14 @@ from advertorch.attacks import LinfPGDAttack
 import matplotlib.pyplot as plt
 from tensorboardX import SummaryWriter
 
+def _model_freeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=False
+
+def _model_unfreeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=True
+
 def saveplot(x, y, filename):
     fig = plt.figure()
     plt.plot(x, y)
@@ -46,22 +54,21 @@ def onlyeval(checkpoint_list, figname_list, batch_size, num_class, writer):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=12, pin_memory=False)
 
-    mean = [0., 0., 0.]
-    std = [1., 1., 1.]
-
-    model = resnet18_small(n_class=num_class, mean=mean, std=std).to(device)
+    model = resnet18_small(n_class=num_class).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id)
     
     for name_ii, checkpoint_path in enumerate(checkpoint_list):
         if torch.distributed.get_rank() == 0:
             print('\nEval on {}'.format(checkpoint_path))
         checkpoint = torch.load(checkpoint_path, map_location=device)
-        model.load_state_dict(checkpoint.state_dict())
+        model.load_state_dict(checkpoint)
+
+        _model_freeze(model)
         
         # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
         # attacker = L2PGD(model, epsilon=1, step=0.1, iterations=10, random_start=True)
         attacker = LinfPGDAttack(
-            model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=7, 
+            model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=20, 
             rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
         )
 
@@ -142,18 +149,15 @@ if __name__ == '__main__':
     batch_size = 512
     num_class = 10
     manualSeed = 2077
-    writer = SummaryWriter('./runs')
+    writer = SummaryWriter('./runs/curve3')
 
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
     checkpoint_list = [
-        './checkpoint_C10R18/clean-final-cifar10.pth',
-        './checkpoint_C10R18/adv-final-cifar10.pth',
-        # './checkpoint/shades-clean-final-cifar10.pth',
-        # './checkpoint/shades-adv-final-cifar10.pth',
-        # './checkpoint/mesa-adv-final-cifar10.pth',
-        './checkpoint_clean/multar-0-cifar10.pth',
+        './checkpoint/clean-final-cifar10.pth',
+        './checkpoint/adv-final-cifar10.pth',
+        './checkpoint/double_tar_280.pth',
     ]
 
     figname_list = [

@@ -38,7 +38,7 @@ def run(lr, epochs, batch_size):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True, max_n_per_class=500)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
@@ -62,37 +62,41 @@ def run(lr, epochs, batch_size):
     attacker = attacker_tar
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
-    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
-    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[300,500,560], gamma=0.1)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.98)
+    scheduler = Scheduler_List([scheduler1])
+
+    # optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999), weight_decay=2e-4)
+    # scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     criterion = Quick_MSELoss(100)
 
-    runner = LinfRunner(240, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=train_dataset.class_num)
+    runner = LinfRunner(600, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=train_dataset.class_num)
     runner.train(adv=False)
-    
-    
+
+    if torch.distributed.get_rank() == 0:
+        torch.save(model.state_dict(), './checkpoint/cifar100_pre_18.pth')
+        print('Save model.')
+
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
-    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,580], gamma=0.5)
-    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
+    scheduler = Scheduler_List([scheduler1, scheduler2])
     
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/cifar100_double_tar.pth')
+        torch.save(model.state_dict(), './checkpoint/cifar100_double_tar_18.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.032*1.2
+    lr = 0.1
     epochs = 600
     batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
-    random.seed(manualSeed)
-    torch.manual_seed(manualSeed)
+    # random.seed(manualSeed)
+    # torch.manual_seed(manualSeed)
 
     writer = SummaryWriter('./runs/cifar100_double_tar')
 

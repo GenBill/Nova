@@ -44,6 +44,18 @@ def target_attack(adversary, inputs, true_target, num_class, device):
     adversary.targeted = True
     return adversary.perturb(inputs, target).detach()
 
+def top_attack(adversary, inputs, true_target, indexes, device):
+    # Ensure target != true_target
+    
+    target_id = torch.randint(low=0, high=9, size=(true_target.shape[0], 1), device=device)
+    target = torch.gather(indexes, dim=0, index=target_id).squeeze_(1)
+    
+    flag = (target==true_target)
+    target = indexes[:, 10]*flag + target*(1-flag)
+
+    adversary.targeted = True
+    return adversary.perturb(inputs, target).detach()
+
 def duelink_attack(adversary, inputs, true_target):
     adversary.targeted = True
     return adversary.perturb(inputs, true_target).detach()
@@ -449,6 +461,49 @@ class FrostRunner():
 
             labels = F.one_hot(labels, self.num_class).float()
             
+            outputs = self.model(inputs)
+            loss = soft_loss(outputs, labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+    
+    def top_10_step(self, progress):
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs, labels in self.train_loader:
+
+            # batchSize = labels_0.shape[0]
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+            
+            self.model.eval()
+            _model_freeze(self.model)
+
+            output = self.model(inputs)
+            _, indexes = torch.sort(output, dim=1)
+
+            adv_inputs_1 = top_attack(self.attacker, inputs, labels, indexes[:,0:11], self.device)
+            adv_inputs_2 = top_attack(self.attacker, inputs, labels, indexes[:,0:11], self.device)
+            _model_unfreeze(self.model)
+            
+            # adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
+            # inputs = Plain_Mix(adv_inputs_1, inputs, self.device)
+
+            adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
+            adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
+            inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
+
+            labels = F.one_hot(labels, self.num_class).float()
+            
+            self.model.train()
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)
             pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
@@ -942,6 +997,26 @@ class FrostRunner():
             ## Add a Writer
             if epoch_idx % self.eval_interval == (self.eval_interval-1):
                 self.add_writer(writer, epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+    
+    def top_10(self, writer):
+        ## Add a Writer
+        # self.add_shower(0)
+        for epoch_idx in range(self.epochs):
+
+            avg_loss = self.top_10_step("{}/{}".format(epoch_idx, self.epochs))
+
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_shower(epoch_idx+1)
             
             if self.scheduler is not None:
                 self.scheduler.step()

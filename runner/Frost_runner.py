@@ -254,6 +254,41 @@ class FrostRunner():
 
         return loss_meter.report()
 
+    def mul_vertex_tar_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs, labels in self.train_loader:
+
+            # batchSize = labels_0.shape[0]
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+            
+            _model_freeze(self.model)
+            adv_inputs = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
+            inputs = torch.cat((
+                Plain_Mix(adv_inputs, inputs, self.device), Plain_Mix(adv_inputs, inputs, self.device),
+                Plain_Mix(adv_inputs, inputs, self.device), Plain_Mix(adv_inputs, inputs, self.device),
+            ), dim=0)
+
+            labels = F.one_hot(labels, self.num_class).float()
+            labels = torch.cat((labels,labels,labels,labels), dim=0)
+            _model_unfreeze(self.model)
+
+            outputs = self.model(inputs)
+            loss = soft_loss(outputs, labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+
     def vertex_tar_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
@@ -489,19 +524,11 @@ class FrostRunner():
 
             output = self.model(inputs)
             _, indexes = torch.sort(output, dim=1)
+            adv_inputs = top_attack(self.attacker, inputs, labels, indexes[:,0:top+1], self.device, top=top)
 
-            adv_inputs_1 = top_attack(self.attacker, inputs, labels, indexes[:,0:top+1], self.device, top=top)
-            adv_inputs_2 = top_attack(self.attacker, inputs, labels, indexes[:,0:top+1], self.device, top=top)
-            _model_unfreeze(self.model)
-            
-            # adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
-            # inputs = Plain_Mix(adv_inputs_1, inputs, self.device)
-
-            adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
-            adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
-            inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
-
+            inputs = Plain_Mix(adv_inputs, inputs, self.device)
             labels = F.one_hot(labels, self.num_class).float()
+            _model_unfreeze(self.model)
             
             self.model.train()
             outputs = self.model(inputs)
@@ -1009,6 +1036,26 @@ class FrostRunner():
         for epoch_idx in range(self.epochs):
 
             avg_loss = self.top_10_step("{}/{}".format(epoch_idx, self.epochs), top)
+
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_shower(epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+
+    def mul_vertex_tar(self, writer):
+        ## Add a Writer
+        self.add_shower(0)
+        for epoch_idx in range(self.epochs):
+
+            avg_loss = self.mul_vertex_tar_step("{}/{}".format(epoch_idx, self.epochs))
 
             avg_loss = collect(avg_loss, self.device)
             if torch.distributed.get_rank() == 0:

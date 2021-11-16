@@ -30,7 +30,6 @@ def run(lr, epochs, batch_size):
     device = f'cuda:{device_id}'
 
     train_transforms = T.Compose([
-        # T.RandomHorizontalFlip(),
         T.ToTensor(),
         Onepixel(32,32)
     ])
@@ -53,8 +52,8 @@ def run(lr, epochs, batch_size):
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
-    scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
-    scheduler = Scheduler_List([scheduler1, scheduler2, scheduler3])
+    # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
+    scheduler = Scheduler_List([scheduler1, scheduler2])
     
     attacker_untar = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -71,22 +70,22 @@ def run(lr, epochs, batch_size):
     criterion = Quick_MSELoss(10)
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.double_tar(writer)
+    runner.vertex_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/svhn_double_tar.pth')
+        torch.save(model.state_dict(), './checkpoint/svhn_vertex_tar.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.032
-    epochs = 240        # 320        # 240
+    epochs = 280        # 320        # 240
     batch_size = 128     # 64*8 = 128*4 = 256*2
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    writer = SummaryWriter('./runs/svhn_double_tar')
+    writer = SummaryWriter('./runs/svhn_vertex_tar')
 
     os.environ['DATAROOT'] = '~/Datasets/svhn'
     run(lr, epochs, batch_size)

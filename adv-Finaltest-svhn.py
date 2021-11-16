@@ -52,7 +52,7 @@ def onlyeval(checkpoint_list, batch_size):
 
         criterion = nn.CrossEntropyLoss()
 
-        # test_accuracy(model, test_loader)
+        test_accuracy(model, test_loader)
 
         runner = EvalRunner(model, test_dataset.class_num, test_loader, criterion, device)
 
@@ -119,7 +119,8 @@ if __name__ == '__main__':
     writer = SummaryWriter('./runs/void')
 
     checkpoint_list = [
-        'all_check/svhn_double_tar.pth',
+        # 'all_check/svhn_double_tar.pth',
+        'checkpoint/svhn_vertex_tar.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/svhn'

@@ -38,7 +38,7 @@ def run(lr, epochs, batch_size):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True, max_n_per_class=500)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
@@ -50,12 +50,17 @@ def run(lr, epochs, batch_size):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
         # find_unused_parameters = True, broadcast_buffers = False)
 
-    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=2e-4)
+    # optimizer = torch.optim.SGD([
+    #     {'params': model.module.encoder.parameters(), 'lr': lr, 'momentum': 0.9, 'weight_decay': 2e-4}, 
+    #     {'params': model.module.classifier.parameters(), 'lr': 0.1*lr, 'momentum': 0.9, 'weight_decay': 2e-4}, 
+    # ])
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
     # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,580], gamma=0.5)
     scheduler = Scheduler_List([scheduler1, scheduler2])
+    scheduler = Scheduler_List([])
     
     attacker_untar = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -72,12 +77,12 @@ def run(lr, epochs, batch_size):
     criterion = Quick_MSELoss(100)
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.eval_interval = 20
+    runner.eval_interval = 10
     runner.vertex_tar(writer)
     # runner.top_10(writer, 10)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/cifar100_double_tar.pth')
+        torch.save(model.state_dict(), './checkpoint/cifar100_vertex_tar_mlp.pth')
         print('Save model 600.')
 
 if __name__ == '__main__':

@@ -134,7 +134,8 @@ if __name__ == '__main__':
     writer = SummaryWriter('./runs/void')
 
     checkpoint_list = [
-        'all_check/double_tar_280.pth',
+        # 'all_check/double_tar_280.pth',
+        'checkpoint/adv-final-cifar10.pth',
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

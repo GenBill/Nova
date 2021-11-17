@@ -41,10 +41,10 @@ class resnet18_small(nn.Module):
         # self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=False)
 
         self.classifier = nn.Sequential(
-            nn.Linear(in_features=512, out_features=256, bias=True),
-            nn.LeakyReLU(),
-            nn.Linear(in_features=256, out_features=256, bias=True),
-            nn.LeakyReLU(),
+            nn.Linear(in_features=512, out_features=256, bias=False),
+            nn.LeakyReLU(inplace=True),
+            nn.Linear(in_features=256, out_features=256, bias=False),
+            nn.LeakyReLU(inplace=True),
             nn.Linear(in_features=256, out_features=n_class, bias=False),
         )
         self.encoder.apply(_init_weight)

@@ -13,7 +13,8 @@ from dataset import Cifar10
 
 from model import resnet18_small
 from runner import FrostRunner
-from utils import get_device_id, Quick_MSELoss, Scheduler_List, Onepixel
+from utils import get_device_id, Scheduler_List, Onepixel
+from utils import Quick_MSELoss, MMC_Loss
 
 from advertorch.attacks import LinfPGDAttack
 from attacker import LinfPGDTargetAttack as LinfTarget
@@ -68,11 +69,12 @@ def run(lr, epochs, batch_size):
     attacker = attacker_tar
 
     # criterion = nn.CrossEntropyLoss()
-    criterion = Quick_MSELoss(10)
+    # criterion = Quick_MSELoss(10)
+    criterion = MMC_Loss(Cmm=10, n_dense=256, class_num=10, device=device)
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 10
-    runner.vertex_tar(writer)
+    runner.mmc_vertex_tar(writer)
 
     if torch.distributed.get_rank() == 0:
         torch.save(model.state_dict(), './checkpoint/vertex_tar_mlp.pth')

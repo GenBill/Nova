@@ -14,7 +14,7 @@ def _generate_opt_means(C, p, L):
     for i in range(1,L):
         for j in range(i): 
             opt_means[i][j] = - (1/(L-1) + np.dot(opt_means[i],opt_means[j])) / opt_means[j][j]
-        opt_means[i][i] = np.sqrt(1 - np.linalg.norm(opt_means[i])**2)
+        opt_means[i][i] = np.sqrt(np.abs(1 - np.linalg.norm(opt_means[i])**2))
     # for k in range(L):
     #     opt_means[k] = C * opt_means[k]
     opt_means = C * opt_means
@@ -50,6 +50,7 @@ class MM_LDA(nn.Module):
  
         return logits
 
+
 class MMC_Loss(nn.Module):
     def __init__(self, Cmm, n_dense, class_num, device):
         super().__init__()
@@ -67,3 +68,11 @@ class MMC_Loss(nn.Module):
         # target = self.mean_expand[label, :]
         # loss = torch.mean(torch.norm(logits-target, dim=1), dim=0)
         return torch.mean(torch.norm(logits-self.mean_expand[label, :], dim=1), dim=0)
+
+
+class MMC_Loss_ch(nn.Module):
+    def __init__(self, ):
+        super().__init__()
+        
+    def forward(self, logits, label):
+        return -torch.mean(torch.gather(logits, 1, label[:, None]))

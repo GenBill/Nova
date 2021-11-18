@@ -9,7 +9,7 @@ from torchvision import datasets
 from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
-from dataset import Cifar10
+from dataset import Cifar100
 
 from model import resnet18_small
 from runner import FrostRunner
@@ -39,21 +39,21 @@ def run(lr, epochs, batch_size):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
-    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
+    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
 
     model = resnet18_small(256).to(device)
-    model = nn.Sequential(model, MM_LDA(10, 256, 10, device))
+    model = nn.Sequential(model, MM_LDA(10, 256, 100, device))
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
 
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
     # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
     scheduler = Scheduler_List([scheduler1, scheduler2])
@@ -63,14 +63,14 @@ def run(lr, epochs, batch_size):
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
     attacker_tar = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=0, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=True, 
     )
 
     attacker = attacker_tar
 
     # criterion = nn.CrossEntropyLoss()
-    criterion = Quick_MSELoss(10)
+    criterion = Quick_MSELoss(100)
     criterion = MMC_Loss_ch()
     # criterion = MMC_Loss(Cmm=10, n_dense=256, class_num=10, device=device)
 
@@ -92,7 +92,7 @@ def run(lr, epochs, batch_size):
 
 if __name__ == '__main__':
     lr = 0.01
-    epochs = 280        # 320        # 240
+    epochs = 480        # 320        # 240
     batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
@@ -101,5 +101,5 @@ if __name__ == '__main__':
 
     writer = SummaryWriter('./runs/cifar10_double_tar')
 
-    os.environ['DATAROOT'] = '~/Datasets/cifar10'
+    os.environ['DATAROOT'] = '~/Datasets/cifar100'
     run(lr, epochs, batch_size)

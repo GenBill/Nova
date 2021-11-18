@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10
 
-from model import resnet18_small
+from model import resnet18_mmc
 from runner import FrostRunner
 from utils import get_device_id, Scheduler_List, Onepixel
 from utils import Quick_MSELoss, MMC_Loss
@@ -47,7 +47,7 @@ def run(lr, epochs, batch_size):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
 
-    model = resnet18_small(train_dataset.class_num).to(device)
+    model = resnet18_mmc(256).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)

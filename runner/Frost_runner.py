@@ -24,9 +24,17 @@ def _model_unfreeze(model) -> None:
     for param in model.parameters():
         param.requires_grad=True
 
+## L2 Loss
 def soft_loss(pred, soft_targets):
     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
     return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
+
+## Wot Loss
+'''
+def soft_loss(pred, soft_targets):
+    # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
+    return torch.sum(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=0)))
+'''
 
 # def soft_loss(pred, soft_targets):
 #     # logsoftmax = nn.LogSoftmax(dim=1)

@@ -93,7 +93,7 @@ def run(lr, epochs, batch_size):
 if __name__ == '__main__':
     lr = 0.01
     epochs = 280        # 320        # 240
-    batch_size = 64     # 64*4 = 128*2 = 256*1
+    batch_size = 128     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)

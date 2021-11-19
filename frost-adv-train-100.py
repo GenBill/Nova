@@ -13,10 +13,11 @@ from dataset import Cifar100
 
 from model import resnet18_small
 from runner import FrostRunner
-from utils import get_device_id, Quick_MSELoss, Scheduler_List, Onepixel
+from utils import get_device_id, Scheduler_List, Onepixel
+from utils import Quick_MSELoss, Quick_WotLoss
 
 from advertorch.attacks import LinfPGDAttack
-from attacker import LinfPGDTargetAttack as LinfTarget
+from attacker import DuelPGD
 from tensorboardX import SummaryWriter
 
 def run(lr, epochs, batch_size):
@@ -38,7 +39,7 @@ def run(lr, epochs, batch_size):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True, max_n_per_class=500)
+    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
@@ -46,27 +47,23 @@ def run(lr, epochs, batch_size):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
 
-    model = resnet18_small(n_class=train_dataset.class_num).to(device)
+    model = resnet18_small(train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
-        # find_unused_parameters = True, broadcast_buffers = False)
 
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=2e-4)
-    # optimizer = torch.optim.SGD([
-    #     {'params': model.module.encoder.parameters(), 'lr': lr, 'momentum': 0.9, 'weight_decay': 2e-4}, 
-    #     {'params': model.module.classifier.parameters(), 'lr': 0.1*lr, 'momentum': 0.9, 'weight_decay': 2e-4}, 
-    # ])
 
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10], gamma=1.78)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
-    # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[560,580], gamma=0.5)
-    scheduler = Scheduler_List([scheduler1, scheduler2])
+    # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
+    scheduler = Scheduler_List([scheduler2])
     scheduler = Scheduler_List([])
     
     attacker_untar = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
-    attacker_tar = LinfPGDAttack(
+    attacker_tar = LinfPGDAttack(   # DuelPGD(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=True, 
     )
@@ -75,26 +72,26 @@ def run(lr, epochs, batch_size):
 
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(100)
+    # criterion = Quick_WotLoss(100)
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 10
     runner.vertex_tar(writer)
-    # runner.top_10(writer, 10)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/cifar100_vertex_tar_mlp.pth')
-        print('Save model 600.')
+        torch.save(model.state_dict(), './checkpoint/vertex_tar_duel100.pth')
+        print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.1
-    epochs = 600
-    batch_size = 64     # 64*4 = 128*2 = 256*1
+    lr = 0.01
+    epochs = 480        # 320        # 240
+    batch_size = 128     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    writer = SummaryWriter('./runs/cifar100_double_tar')
+    writer = SummaryWriter('./runs/cifar100_vertex_tar')
 
     os.environ['DATAROOT'] = '~/Datasets/cifar100'
     run(lr, epochs, batch_size)

@@ -1,155 +1,355 @@
+# Copyright (c) 2018-present, Royal Bank of Canada and other authors.
+# See the AUTHORS.txt file for a list of contributors.
+# All rights reserved.
+#
+# This source code is licensed under the license found in the
+# LICENSE file in the root directory of this source tree.
+#
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-class LinfPGDTargetAttack(nn.Module):
-    """Projected Gradient Decent(PGD) attack.
-    Can be used to adversarial training.
+from advertorch.utils import clamp
+from advertorch.utils import normalize_by_pnorm
+from advertorch.utils import clamp_by_pnorm
+from advertorch.utils import is_float_or_torch_tensor
+from advertorch.utils import batch_multiply
+from advertorch.utils import batch_clamp
+from advertorch.utils import replicate_input
+from advertorch.utils import batch_l1_proj
+
+from advertorch.attacks.base import Attack
+from advertorch.attacks.base import LabelMixin
+from advertorch.attacks.utils import rand_init_delta
+
+
+def perturb_iterative(xvar, yvar, faker, predict, nb_iter, eps, eps_iter, loss_fn,
+                      delta_init=None, minimize=False, ord=np.inf,
+                      clip_min=0.0, clip_max=1.0,
+                      l1_sparsity=None):
     """
-    def __init__(self, model, num_class=10, epsilon=8/255, step=2/255, iterations=20, criterion=None, random_start=True, targeted=True):
-        super(LinfPGDTargetAttack, self).__init__()
-        # Arguments of PGD
-        self.device = next(model.parameters()).device
-        self.model = model
-        self.num_class = num_class
+    Iteratively maximize the loss over the input. It is a shared method for
+    iterative attacks including IterativeGradientSign, LinfPGD, etc.
 
-        self.epsilon = epsilon
-        self.step = step
-        self.iterations = iterations
-        self.random_start = random_start
-        self.targeted = targeted
+    :param xvar: input data.
+    :param yvar: input labels.
+    :param predict: forward pass function.
+    :param nb_iter: number of iterations.
+    :param eps: maximum distortion.
+    :param eps_iter: attack step size.
+    :param loss_fn: loss function.
+    :param delta_init: (optional) tensor contains the random initialization.
+    :param minimize: (optional bool) whether to minimize or maximize the loss.
+    :param ord: (optional) the order of maximum distortion (inf or 2).
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param l1_sparsity: sparsity value for L1 projection.
+                  - if None, then perform regular L1 projection.
+                  - if float value, then perform sparse L1 descent from
+                    Algorithm 1 in https://arxiv.org/pdf/1904.13000v1.pdf
+    :return: tensor containing the perturbed input.
+    """
+    if delta_init is not None:
+        delta = delta_init
+    else:
+        delta = torch.zeros_like(xvar)
 
-        self.criterion = criterion
-        if self.criterion is None:
-            self.criterion = lambda model, input, target: nn.functional.cross_entropy(model(input), target)
-
-        # Model status
-        self.training = self.model.training
-
-    def project(self, perturbation):
-        # Clamp the perturbation to epsilon Lp ball.
-        return torch.clamp(perturbation, -self.epsilon, self.epsilon)
-
-    def compute_perturbation(self, adv_x, x):
-        # Project the perturbation to Lp ball
-        perturbation = self.project(adv_x - x)
-        # Clamp the adversarial image to a legal 'image'
-        perturbation = torch.clamp(x+perturbation, 0., 1.) - x
-
-        return perturbation
-
-    def onestep(self, x, perturbation, target):
-        # Running one step for 
-        adv_x = x + perturbation
-        adv_x.requires_grad = True
+    delta.requires_grad_()
+    for ii in range(nb_iter):
+        outputs = predict(xvar + delta)
+        loss = loss_fn(outputs, yvar)
+        if minimize:
+            loss = -loss
+        loss += loss_fn(outputs, faker)
         
-        atk_loss = self.criterion(self.model, adv_x, target)
+        loss.backward()
+        if ord == np.inf:
+            grad_sign = delta.grad.data.sign()
+            delta.data = delta.data + batch_multiply(eps_iter, grad_sign)
+            delta.data = batch_clamp(eps, delta.data)
+            delta.data = clamp(xvar.data + delta.data, clip_min, clip_max
+                               ) - xvar.data
 
-        self.model.zero_grad()
-        atk_loss.backward()
-        grad = adv_x.grad
-        # Essential: delete the computation graph to save GPU ram
-        adv_x.requires_grad = False
+        elif ord == 2:
+            grad = delta.grad.data
+            grad = normalize_by_pnorm(grad)
+            delta.data = delta.data + batch_multiply(eps_iter, grad)
+            delta.data = clamp(xvar.data + delta.data, clip_min, clip_max
+                               ) - xvar.data
+            if eps is not None:
+                delta.data = clamp_by_pnorm(delta.data, ord, eps)
 
-        adv_x = adv_x.detach() + self.step * torch.sign(grad)
-        perturbation = self.compute_perturbation(adv_x, x)
+        elif ord == 1:
+            grad = delta.grad.data
+            abs_grad = torch.abs(grad)
 
-        return perturbation
-    
-    def fakerstep(self, x, perturbation, target, faker, times=1):
-        # Running one step for 
-        adv_x = x + perturbation
-        adv_x.requires_grad = True
-        
-        pred = self.model(adv_x)
-        
-        ## L2 Loss PGD
-        # atk_loss = torch.mean(torch.norm(pred-target, dim=1)-torch.norm(pred-faker, dim=1), dim=0)
-        
-        atk_loss = nn.functional.cross_entropy(pred, target) - nn.functional.cross_entropy(pred, faker)
-        # atk_loss = self.criterion(self.model, adv_x, target) - self.criterion(self.model, adv_x, faker)
+            batch_size = grad.size(0)
+            view = abs_grad.view(batch_size, -1)
+            view_size = view.size(1)
+            if l1_sparsity is None:
+                vals, idx = view.topk(1)
+            else:
+                vals, idx = view.topk(
+                    int(np.round((1 - l1_sparsity) * view_size)))
 
-        self.model.zero_grad()
-        atk_loss.backward()
-        grad = adv_x.grad
-        # Essential: delete the computation graph to save GPU ram
-        adv_x.requires_grad = False
+            out = torch.zeros_like(view).scatter_(1, idx, vals)
+            out = out.view_as(grad)
+            grad = grad.sign() * (out > 0).float()
+            grad = normalize_by_pnorm(grad, p=1)
+            delta.data = delta.data + batch_multiply(eps_iter, grad)
 
-        adv_x = adv_x.detach() + times * self.step * torch.sign(grad)
-        perturbation = self.compute_perturbation(adv_x, x)
-
-        return perturbation
-    
-    def _model_freeze(self):
-        for param in self.model.parameters():
-            param.requires_grad=False
-
-    def _model_unfreeze(self):
-        for param in self.model.parameters():
-            param.requires_grad=True
-
-    def random_perturbation(self, x):
-        perturbation = self.epsilon * (torch.rand_like(x)*2-1).to(device=self.device)
-        # perturbation = self.compute_perturbation(x+perturbation, x)
-
-        return perturbation
-
-    def attack(self, x, target):
-        x = x.to(self.device)
-        target = target.to(self.device)
-
-        self.training = self.model.training
-        self.model.eval()
-        self._model_freeze()
-
-        perturbation = torch.zeros_like(x).to(self.device)
-        if self.random_start:
-            perturbation = self.random_perturbation(x)
-
-        with torch.enable_grad():
-            for i in range(self.iterations):
-                perturbation = self.onestep(x, perturbation, target)
-
-        self._model_unfreeze()
-        if self.training:
-            self.model.train()
-
-        return x + perturbation
-    
-    def target_attack(self, x, target):
-        faker = torch.randint(low=0, high=self.num_class-1, size=target.shape, device=self.device)
-        # Ensure target != true_target
-        faker += (faker >= target).int()
-
-        x = x.to(self.device)
-        target = target.to(self.device)
-
-        self.training = self.model.training
-        self.model.eval()
-        self._model_freeze()
-
-        perturbation = torch.zeros_like(x).to(self.device)
-        if self.random_start:
-            perturbation = self.random_perturbation(x)
-        
-        # target = F.one_hot(target, num_classes=self.num_class).float()
-        # faker = F.one_hot(faker, num_classes=self.num_class).float()
-
-        with torch.enable_grad():
-            # perturbation = self.fakerstep(x, perturbation, target, faker, 4)
-            # perturbation = self.fakerstep(x, perturbation, target, faker, 2)
-            # perturbation = self.fakerstep(x, perturbation, target, faker, 2)
-            for i in range(self.iterations):
-                perturbation = self.fakerstep(x, perturbation, target, faker)
-
-        self._model_unfreeze()
-        if self.training:
-            self.model.train()
-
-        return x + perturbation
-    
-    def perturb(self, x, target):
-        if self.targeted:
-            return self.target_attack(x, target)
+            delta.data = batch_l1_proj(delta.data.cpu(), eps)
+            if xvar.is_cuda:
+                delta.data = delta.data.cuda()
+            delta.data = clamp(xvar.data + delta.data, clip_min, clip_max
+                               ) - xvar.data
         else:
-            return self.attack(x, target)
+            error = "Only ord = inf, ord = 1 and ord = 2 have been implemented"
+            raise NotImplementedError(error)
+        delta.grad.data.zero_()
+
+    x_adv = clamp(xvar + delta, clip_min, clip_max)
+    return x_adv
+
+
+class PGDAttack(Attack, LabelMixin):
+    """
+    The projected gradient descent attack (Madry et al, 2017).
+    The attack performs nb_iter steps of size eps_iter, while always staying
+    within eps from the initial point.
+    Paper: https://arxiv.org/pdf/1706.06083.pdf
+
+    :param predict: forward pass function.
+    :param loss_fn: loss function.
+    :param eps: maximum distortion.
+    :param nb_iter: number of iterations.
+    :param eps_iter: attack step size.
+    :param rand_init: (optional bool) random initialization.
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param ord: (optional) the order of maximum distortion (inf or 2).
+    :param targeted: if the attack is targeted.
+    """
+
+    def __init__(
+            self, predict, loss_fn=None, eps=0.3, nb_iter=40,
+            eps_iter=0.01, rand_init=True, clip_min=0., clip_max=1.,
+            ord=np.inf, l1_sparsity=None, targeted=False):
+        """
+        Create an instance of the PGDAttack.
+
+        """
+        super(PGDAttack, self).__init__(
+            predict, loss_fn, clip_min, clip_max)
+        self.eps = eps
+        self.nb_iter = nb_iter
+        self.eps_iter = eps_iter
+        self.rand_init = rand_init
+        self.ord = ord
+        self.targeted = targeted
+        if self.loss_fn is None:
+            self.loss_fn = nn.CrossEntropyLoss(reduction="sum")
+        self.l1_sparsity = l1_sparsity
+        assert is_float_or_torch_tensor(self.eps_iter)
+        assert is_float_or_torch_tensor(self.eps)
+
+    def perturb(self, x, y=None):
+        """
+        Given examples (x, y), returns their adversarial counterparts with
+        an attack length of eps.
+
+        :param x: input tensor.
+        :param y: label tensor.
+                  - if None and self.targeted=False, compute y as predicted
+                    labels.
+                  - if self.targeted=True, then y must be the targeted labels.
+        :return: tensor containing perturbed inputs.
+        """
+        x, y = self._verify_and_process_inputs(x, y)
+        faker =  torch.randint(low=0, high=x.shape[1]-1, size=y.shape, device=y.device)
+        faker += (faker >= y).int()
+
+        delta = torch.zeros_like(x)
+        delta = nn.Parameter(delta)
+        if self.rand_init:
+            rand_init_delta(
+                delta, x, self.ord, self.eps, self.clip_min, self.clip_max)
+            delta.data = clamp(
+                x + delta.data, min=self.clip_min, max=self.clip_max) - x
+
+        rval = perturb_iterative(
+            x, y, faker, self.predict, nb_iter=self.nb_iter,
+            eps=self.eps, eps_iter=self.eps_iter,
+            loss_fn=self.loss_fn, minimize=self.targeted,
+            ord=self.ord, clip_min=self.clip_min,
+            clip_max=self.clip_max, delta_init=delta,
+            l1_sparsity=self.l1_sparsity,
+        )
+
+        return rval.data
+
+
+class LinfPGDAttack(PGDAttack):
+    """
+    PGD Attack with order=Linf
+
+    :param predict: forward pass function.
+    :param loss_fn: loss function.
+    :param eps: maximum distortion.
+    :param nb_iter: number of iterations.
+    :param eps_iter: attack step size.
+    :param rand_init: (optional bool) random initialization.
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param targeted: if the attack is targeted.
+    """
+
+    def __init__(
+            self, predict, loss_fn=None, eps=0.3, nb_iter=40,
+            eps_iter=0.01, rand_init=True, clip_min=0., clip_max=1.,
+            targeted=False):
+        ord = np.inf
+        super(LinfPGDAttack, self).__init__(
+            predict=predict, loss_fn=loss_fn, eps=eps, nb_iter=nb_iter,
+            eps_iter=eps_iter, rand_init=rand_init, clip_min=clip_min,
+            clip_max=clip_max, targeted=targeted,
+            ord=ord)
+
+
+class L2PGDAttack(PGDAttack):
+    """
+    PGD Attack with order=L2
+
+    :param predict: forward pass function.
+    :param loss_fn: loss function.
+    :param eps: maximum distortion.
+    :param nb_iter: number of iterations.
+    :param eps_iter: attack step size.
+    :param rand_init: (optional bool) random initialization.
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param targeted: if the attack is targeted.
+    """
+
+    def __init__(
+            self, predict, loss_fn=None, eps=0.3, nb_iter=40,
+            eps_iter=0.01, rand_init=True, clip_min=0., clip_max=1.,
+            targeted=False):
+        ord = 2
+        super(L2PGDAttack, self).__init__(
+            predict=predict, loss_fn=loss_fn, eps=eps, nb_iter=nb_iter,
+            eps_iter=eps_iter, rand_init=rand_init, clip_min=clip_min,
+            clip_max=clip_max, targeted=targeted,
+            ord=ord)
+
+
+class L1PGDAttack(PGDAttack):
+    """
+    PGD Attack with order=L1
+
+    :param predict: forward pass function.
+    :param loss_fn: loss function.
+    :param eps: maximum distortion.
+    :param nb_iter: number of iterations.
+    :param eps_iter: attack step size.
+    :param rand_init: (optional bool) random initialization.
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param targeted: if the attack is targeted.
+    """
+
+    def __init__(
+            self, predict, loss_fn=None, eps=10., nb_iter=40,
+            eps_iter=0.01, rand_init=True, clip_min=0., clip_max=1.,
+            targeted=False):
+        ord = 1
+        super(L1PGDAttack, self).__init__(
+            predict=predict, loss_fn=loss_fn, eps=eps, nb_iter=nb_iter,
+            eps_iter=eps_iter, rand_init=rand_init, clip_min=clip_min,
+            clip_max=clip_max, targeted=targeted,
+            ord=ord, l1_sparsity=None)
+
+
+class SparseL1DescentAttack(PGDAttack):
+    """
+    SparseL1Descent Attack
+
+    :param predict: forward pass function.
+    :param loss_fn: loss function.
+    :param eps: maximum distortion.
+    :param nb_iter: number of iterations.
+    :param eps_iter: attack step size.
+    :param rand_init: (optional bool) random initialization.
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param targeted: if the attack is targeted.
+    :param l1_sparsity: proportion of zeros in gradient updates
+    """
+
+    def __init__(
+            self, predict, loss_fn=None, eps=0.3, nb_iter=40,
+            eps_iter=0.01, rand_init=False, clip_min=0., clip_max=1.,
+            l1_sparsity=0.95, targeted=False):
+        ord = 1
+        super(SparseL1DescentAttack, self).__init__(
+            predict=predict, loss_fn=loss_fn, eps=eps, nb_iter=nb_iter,
+            eps_iter=eps_iter, rand_init=rand_init, clip_min=clip_min,
+            clip_max=clip_max, targeted=targeted,
+            ord=ord, l1_sparsity=l1_sparsity)
+
+
+class L2BasicIterativeAttack(PGDAttack):
+    """Like GradientAttack but with several steps for each epsilon.
+
+    :param predict: forward pass function.
+    :param loss_fn: loss function.
+    :param eps: maximum distortion.
+    :param nb_iter: number of iterations.
+    :param eps_iter: attack step size.
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param targeted: if the attack is targeted.
+    """
+
+    def __init__(self, predict, loss_fn=None, eps=0.1, nb_iter=10,
+                 eps_iter=0.05, clip_min=0., clip_max=1., targeted=False):
+        ord = 2
+        rand_init = False
+        l1_sparsity = None
+        super(L2BasicIterativeAttack, self).__init__(
+            predict, loss_fn, eps, nb_iter, eps_iter, rand_init,
+            clip_min, clip_max, ord, l1_sparsity, targeted)
+
+
+class LinfBasicIterativeAttack(PGDAttack):
+    """
+    Like GradientSignAttack but with several steps for each epsilon.
+    Aka Basic Iterative Attack.
+    Paper: https://arxiv.org/pdf/1611.01236.pdf
+
+    :param predict: forward pass function.
+    :param loss_fn: loss function.
+    :param eps: maximum distortion.
+    :param nb_iter: number of iterations.
+    :param eps_iter: attack step size.
+    :param rand_init: (optional bool) random initialization.
+    :param clip_min: mininum value per input dimension.
+    :param clip_max: maximum value per input dimension.
+    :param targeted: if the attack is targeted.
+    """
+
+    def __init__(self, predict, loss_fn=None, eps=0.1, nb_iter=10,
+                 eps_iter=0.05, clip_min=0., clip_max=1., targeted=False):
+        ord = np.inf
+        rand_init = False
+        l1_sparsity = None
+        super(LinfBasicIterativeAttack, self).__init__(
+            predict, loss_fn, eps, nb_iter, eps_iter, rand_init,
+            clip_min, clip_max, ord, l1_sparsity, targeted)
+

@@ -13,10 +13,11 @@ from dataset import Cifar10
 
 from model import resnet18_small
 from runner import FrostRunner
-from utils import get_device_id, Quick_MSELoss, Scheduler_List, Onepixel
+from utils import get_device_id, Scheduler_List, Onepixel
+from utils import Quick_MSELoss, Quick_WotLoss
 
 from advertorch.attacks import LinfPGDAttack
-from attacker import LinfPGDTargetAttack as LinfTarget
+from attacker import DuelPGD
 from tensorboardX import SummaryWriter
 
 def run(lr, epochs, batch_size):
@@ -60,7 +61,7 @@ def run(lr, epochs, batch_size):
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
-    attacker_tar = LinfPGDAttack(
+    attacker_tar = DuelPGD(#LinfPGDAttack(    # DuelPGD(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=True, 
     )
@@ -69,25 +70,26 @@ def run(lr, epochs, batch_size):
 
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(10)
+    # criterion = Quick_WotLoss(10)
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 10
     runner.vertex_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/vertex_tar_mlp.pth')
+        torch.save(model.state_dict(), './checkpoint/vertex_tar_duel.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.032
     epochs = 280        # 320        # 240
-    batch_size = 64     # 64*4 = 128*2 = 256*1
+    batch_size = 32     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    writer = SummaryWriter('./runs/cifar10_double_tar')
+    writer = SummaryWriter('./runs/cifar10_vertex_tar')
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'
     run(lr, epochs, batch_size)

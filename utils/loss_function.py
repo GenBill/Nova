@@ -14,6 +14,17 @@ class Quick_MSELoss(nn.Module):
         return torch.mean(torch.norm(input-target, dim=1), dim=0)
         # return torch.mean(torch.sqrt(torch.mean((input-target)**2, dim=1)), dim=0)
 
+class Quick_WotLoss(nn.Module):
+    def __init__(self, n_class, reduction='mean'):
+        super(Quick_WotLoss, self).__init__()
+        self.n_class = n_class
+        self.reduction = reduction
+
+    def forward(self, input, label):
+        target = F.one_hot(label, num_classes=self.n_class).float()
+        # input = F.log_softmax(input, dim=1)
+        return torch.sum(torch.sqrt(torch.mean((input-target)**2, dim=0)))
+
 class TrueQuick_MSELoss(nn.Module):
     def __init__(self, n_class, reduction='mean'):
         super(Quick_MSELoss, self).__init__()

@@ -46,6 +46,28 @@ class EleRunner():
 
         self.desc = lambda status, progress: f"{status}: {progress}"
         
+    def add_shower(self, epoch_idx):
+        # train test
+        avg_loss, acc_sum, acc_count = self.train_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Train) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+        
+        # clean test
+        avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+
+        # std adv test
+        avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+    
     def clean_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
@@ -75,7 +97,7 @@ class EleRunner():
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
             data = untarget_attack(self.std_attacker, data, target)
-            noisy, eleven = ele_attack(self.attacker, data, target)
+            noisy, eleven = ele_attack(self.attacker, data, target, self.device)
             eleven *= self.num_class
             _model_unfreeze(self.model)
 
@@ -170,19 +192,7 @@ class EleRunner():
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
     def train(self, adv=True):
-        (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
-        avg_loss = collect(avg_loss, self.device)
-        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-
-        (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
-        avg_loss = collect(avg_loss, self.device)
-        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-        
-
+        self.add_shower(0)
         for epoch_idx in range(self.epochs):
             if adv:
                 avg_loss = self.adv_step("{}/{}".format(epoch_idx, self.epochs))
@@ -195,27 +205,11 @@ class EleRunner():
                 else:
                     tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
             
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_shower(epoch_idx+1)
+
             if self.scheduler is not None:
                 self.scheduler.step()
-
-            if epoch_idx % self.eval_interval == (self.eval_interval-1):
-                avg_loss, acc_sum, acc_count = self.train_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Train) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-                
-                avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
-                    
-                avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
-                avg_loss = collect(avg_loss, self.device)
-                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-                if torch.distributed.get_rank() == 0:
-                    tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
     

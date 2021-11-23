@@ -51,13 +51,13 @@ def run(lr, epochs, batch_size):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=2e-4)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=2e-4)
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
     # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
-    scheduler = Scheduler_List([scheduler2])
-    scheduler = Scheduler_List([])
+    scheduler = Scheduler_List([scheduler1, scheduler2])
+    # scheduler = Scheduler_List([])
     
     attacker_untar = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -79,13 +79,13 @@ def run(lr, epochs, batch_size):
     runner.vertex_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/vertex_tar_duel100.pth')
+        torch.save(model.state_dict(), './checkpoint/vertex_tar_100.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.01
+    lr = 0.1
     epochs = 480        # 320        # 240
-    batch_size = 128     # 64*4 = 128*2 = 256*1
+    batch_size = 32     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)

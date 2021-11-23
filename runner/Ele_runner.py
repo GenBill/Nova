@@ -12,16 +12,15 @@ def _model_unfreeze(model) -> None:
     for param in model.parameters():
         param.requires_grad=True
 
-def ele_attack(adversary, inputs, target, frac=8):
-    this_shape = target.shape[0]
-    this_shape = this_shape//frac
-    noisy = torch.rand_like(inputs)
-    noisy = noisy[:this_shape,:]
-    eleven = torch.ones_like(target)
-    eleven = eleven[:this_shape]
+def ele_attack(adversary, inputs, target, device, frac=8):
+    this_shape = inputs.shape[0]//frac
+    noisy = torch.rand((this_shape, inputs.shape[1], inputs.shape[2], inputs.shape[3]), device=device)
     
     adversary.targeted = True
     adv_inputs = adversary.perturb(noisy, target[:this_shape]).detach()
+
+    eleven = torch.ones_like(target)
+    eleven = eleven[:this_shape]
     return adv_inputs, eleven
 
 
@@ -75,6 +74,7 @@ class EleRunner():
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
+            data = untarget_attack(self.std_attacker, data, target)
             noisy, eleven = ele_attack(self.attacker, data, target)
             eleven *= self.num_class
             _model_unfreeze(self.model)
@@ -151,7 +151,7 @@ class EleRunner():
         for batch_idx, (data, target) in enumerate(self.test_loader):
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
-            data = untarget_attack(self.attacker, data, target)
+            data = untarget_attack(self.std_attacker, data, target)
             _model_unfreeze(self.model)
             
             with torch.no_grad():

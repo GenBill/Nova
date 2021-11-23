@@ -72,7 +72,7 @@ def run(lr, epochs, batch_size):
 
 if __name__ == '__main__':
     lr = 0.1
-    epochs = 1#120        # 320        # 240
+    epochs = 120        # 320        # 240
     batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 

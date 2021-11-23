@@ -13,13 +13,10 @@ def _model_unfreeze(model) -> None:
         param.requires_grad=True
 
 def ele_attack(adversary, inputs, target, device, frac=8):
-    this_shape = inputs.shape
-    this_shape[0] = this_shape[0]//frac
-    noisy = torch.rand(this_shape)
-
-    this_shape = target.shape
-    this_shape[0] //= frac
-    eleven = torch.ones(target)
+    this_shape = target.shape[0]//frac
+    noisy = torch.rand_like(inputs)
+    noisy = noisy[:this_shape,:]
+    eleven = target[:this_shape,:]
     
     adversary.targeted = True
     adv_inputs = adversary.perturb(noisy, target).detach()

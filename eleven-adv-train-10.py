@@ -13,7 +13,7 @@ from dataset import Cifar10
 
 from model import resnet18_small
 from runner import EleRunner
-from utils import get_device_id, Scheduler_List, Onepixel
+from utils import get_device_id, Scheduler_List, Onepixel, addNoise
 from utils import Quick_MSELoss, Quick_WotLoss
 
 from advertorch.attacks import LinfPGDAttack
@@ -33,6 +33,7 @@ def run(lr, epochs, batch_size):
     train_transforms = T.Compose([
         T.RandomHorizontalFlip(),
         T.ToTensor(),
+        addNoise(8/255),
         Onepixel(32,32)
     ])
     test_transforms = T.Compose([
@@ -51,7 +52,7 @@ def run(lr, epochs, batch_size):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100,110], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,240], gamma=0.1)
     
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=1.0, eps_iter=2/255, nb_iter=10, 
@@ -72,8 +73,8 @@ def run(lr, epochs, batch_size):
 
 if __name__ == '__main__':
     lr = 0.1
-    epochs = 120        # 320        # 240
-    batch_size = 64     # 64*4 = 128*2 = 256*1
+    epochs = 280        # 320        # 240
+    batch_size = 32     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)

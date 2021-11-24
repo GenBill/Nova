@@ -53,6 +53,9 @@ def collect(x, device, mode='mean'):
     if mode == 'mean':
         xt /= torch.distributed.get_world_size()
     return xt
+
+def nocollect(x, device, mode='mean'):
+    return x
     
 def get_device_id():
     import argparse

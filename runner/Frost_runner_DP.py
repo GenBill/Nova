@@ -699,7 +699,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def wo_untar(self, writer):
         ## Add a Writer
@@ -718,7 +718,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def vertex_tar(self, writer):
         ## Add a Writer
@@ -737,7 +737,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def reg_vertex_tar(self, writer):
         ## Add a Writer
@@ -756,7 +756,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
 
     def vertex_untar(self, writer):
         ## Add a Writer
@@ -775,7 +775,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def edge_tar(self, writer):
         ## Add a Writer
@@ -794,7 +794,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def edge_untar(self, writer):
         ## Add a Writer
@@ -813,7 +813,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def double_tar(self, writer):
         ## Add a Writer
@@ -832,7 +832,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def double_tar_writer(self, writer):
         ## Add a Writer
@@ -851,7 +851,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def double_untar(self, writer):
         ## Add a Writer
@@ -870,7 +870,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
     
     def top_10(self, writer, top):
         ## Add a Writer
@@ -889,7 +889,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
 
     def mul_vertex_tar(self, writer):
         ## Add a Writer
@@ -908,7 +908,7 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        
 
     def mmc_vertex_tar(self, writer):
         ## Add a Writer
@@ -927,4 +927,4 @@ class FrostDPRunner():
             if self.scheduler is not None:
                 self.scheduler.step()
 
-        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        

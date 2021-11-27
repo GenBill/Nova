@@ -26,18 +26,18 @@ def _model_unfreeze(model) -> None:
         param.requires_grad=True
 
 ## L2 Loss
-def soft_loss(pred, soft_targets):
-    # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
-    return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
+# def soft_loss(pred, soft_targets):
+#     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
+#     return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
 
 ## Wot Loss
 # def soft_loss(pred, soft_targets):
 #     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
 #     return torch.norm(pred-soft_targets)
 
-# def soft_loss(pred, soft_targets):
-#     # logsoftmax = nn.LogSoftmax(dim=1)
-#     return torch.mean(torch.sum(-soft_targets * F.log_softmax(pred, dim=1), dim=1))
+def soft_loss(pred, soft_targets):
+    # logsoftmax = nn.LogSoftmax(dim=1)
+    return torch.mean(torch.sum(-soft_targets * F.log_softmax(pred, dim=1), dim=1))
 
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False

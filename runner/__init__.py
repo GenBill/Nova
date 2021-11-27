@@ -3,7 +3,8 @@ from .Trans_runner import TransRunner
 
 from .Linf_runner import LinfRunner
 from .Frost_runner import FrostRunner
-from .Frost_runner_DP import FrostDPRunner
+from .Frost_runner_DP import FrostRunner_DP
+from .Frost_runner_SR import FrostRunner_SR
 from .Ptest_runner import PtestRunner
 
 from .Ele_runner import EleRunner

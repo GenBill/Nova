@@ -26,18 +26,18 @@ def _model_unfreeze(model) -> None:
         param.requires_grad=True
 
 ## L2 Loss
-# def soft_loss(pred, soft_targets):
-#     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
-#     return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
+def soft_loss(pred, soft_targets):
+    # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
+    return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
 
 ## Wot Loss
 # def soft_loss(pred, soft_targets):
 #     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
 #     return torch.norm(pred-soft_targets)
 
-def soft_loss(pred, soft_targets):
-    # logsoftmax = nn.LogSoftmax(dim=1)
-    return torch.mean(torch.sum(-soft_targets * F.log_softmax(pred, dim=1), dim=1))
+# def soft_loss(pred, soft_targets):
+#     # logsoftmax = nn.LogSoftmax(dim=1)
+#     return torch.mean(torch.sum(-soft_targets * F.log_softmax(pred, dim=1), dim=1))
 
 def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
@@ -82,6 +82,7 @@ def Plain_Mix(inputs_1, inputs_2, device):
 def Target_Mix(inputs_1, inputs_2, labels_1, labels_2, device):
     rand_lambda = torch.rand((inputs_1.shape[0],1,1,1), device=device)
     data = rand_lambda*inputs_1 + (1-rand_lambda)*inputs_2
+    rand_lambda.squeeze_(3).squeeze_(2)
     target = rand_lambda*labels_1 + (1-rand_lambda)*labels_2
     return data, target
 
@@ -100,15 +101,15 @@ class FrostRunner_SR():
         self.scheduler = scheduler
         
         self.attacker = attacker
-        self.std_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=20, random_start=True, targeted=False)
-        self.lipz_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=100, random_start=True, targeted=False)
+        # self.std_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=20, random_start=True, targeted=False)
+        # self.lipz_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=100, random_start=True, targeted=False)
         
-        # self.std_attacker = LinfPGDAttack(
-        #     self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=20, 
-        #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, )
-        # self.lipz_attacker = LinfPGDAttack(
-        #     self.model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=100, 
-        #     rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, )
+        self.std_attacker = LinfPGDAttack(
+            self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=20, 
+            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, )
+        self.lipz_attacker = LinfPGDAttack(
+            self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=100, 
+            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, )
 
         self.num_class = num_class
 
@@ -569,17 +570,16 @@ class FrostRunner_SR():
             data, target = data.to(self.device), target.to(self.device)
             data = untarget_attack(self.attacker, data, target)
 
-            with torch.no_grad():
-                output = self.model(data)
-                loss = self.criterion(output, target)
-                loss_meter.update(loss.item())
-                pred = output.argmax(dim=1)
+            output = self.model(data)
+            loss = self.criterion(output, target)
+            loss_meter.update(loss.item())
+            pred = output.argmax(dim=1)
 
-                true_positive = (pred == target).sum().item()
-                total = pred.shape[0]
-                accuracy_meter.update(true_positive, total)
-                
-                pbar.update(1)
+            true_positive = (pred == target).sum().item()
+            total = pred.shape[0]
+            accuracy_meter.update(true_positive, total)
+            
+            pbar.update(1)
         pbar.close()
         
         _model_unfreeze(self.model)
@@ -596,17 +596,16 @@ class FrostRunner_SR():
             data, target = data.to(self.device), target.to(self.device)
             data = untarget_attack(self.std_attacker, data, target)
 
-            with torch.no_grad():
-                output = self.model(data)
-                loss = self.criterion(output, target)
-                loss_meter.update(loss.item())
-                pred = output.argmax(dim=1)
+            output = self.model(data)
+            loss = self.criterion(output, target)
+            loss_meter.update(loss.item())
+            pred = output.argmax(dim=1)
 
-                true_positive = (pred == target).sum().item()
-                total = pred.shape[0]
-                accuracy_meter.update(true_positive, total)
-                
-                pbar.update(1)
+            true_positive = (pred == target).sum().item()
+            total = pred.shape[0]
+            accuracy_meter.update(true_positive, total)
+            
+            pbar.update(1)
         pbar.close()
 
         _model_unfreeze(self.model)

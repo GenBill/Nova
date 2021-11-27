@@ -40,9 +40,11 @@ def run(lr, epochs, batch_size):
     ])
 
     train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
-    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
+    train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, seed=0)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
-    shadow_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=4, pin_memory=True)
+    
+    shadow_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset, seed=1)
+    shadow_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=shadow_sampler, num_workers=4, pin_memory=True)
 
     test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
@@ -84,7 +86,7 @@ def run(lr, epochs, batch_size):
 if __name__ == '__main__':
     lr = 0.032
     epochs = 280        # 320        # 240
-    batch_size = 64     # 64*4 = 128*2 = 256*1
+    batch_size = 128     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)

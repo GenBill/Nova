@@ -5,6 +5,7 @@ from .Linf_runner import LinfRunner
 from .Frost_runner import FrostRunner
 from .Frost_runner_DP import FrostRunner_DP
 from .Frost_runner_SR import FrostRunner_SR
+from .Frost_runner_KM import FrostRunner_KM
 from .Ptest_runner import PtestRunner
 
 from .Ele_runner import EleRunner

@@ -96,12 +96,13 @@ class EleRunner():
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
-            # data = untarget_attack(self.std_attacker, data, target)
-            noisy, eleven = ele_attack(self.attacker, data, target, self.device)
-            eleven *= self.num_class
+            data_adv = untarget_attack(self.std_attacker, data, target)
+            # noisy, eleven = ele_attack(self.attacker, data, target, self.device)
+            # noisy = data_adv-data
+            eleven = self.num_class*torch.ones_like(target)
             _model_unfreeze(self.model)
 
-            inputs = torch.cat((data, noisy), dim=0)
+            inputs = torch.cat((data_adv, data_adv-data), dim=0)
             target = torch.cat((target, eleven), dim=0)
 
             output = self.model(inputs)

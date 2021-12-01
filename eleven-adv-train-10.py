@@ -52,10 +52,10 @@ def run(lr, epochs, batch_size):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,240], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120,140], gamma=0.1)
     
     attacker = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=1.0, eps_iter=2/255, nb_iter=10, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=True, 
     )
 
@@ -64,17 +64,17 @@ def run(lr, epochs, batch_size):
     # criterion = Quick_WotLoss(10)
 
     runner = EleRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.eval_interval = 10
+    runner.eval_interval = 5
     runner.train(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/ele_10.pth')
+        torch.save(model.state_dict(), './checkpoint/ele_10_new.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.1
-    epochs = 280        # 320        # 240
-    batch_size = 32     # 64*4 = 128*2 = 256*1
+    epochs = 150        # 320        # 240
+    batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)

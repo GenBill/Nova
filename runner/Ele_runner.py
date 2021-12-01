@@ -96,13 +96,13 @@ class EleRunner():
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
-            data_adv = untarget_attack(self.std_attacker, data, target)
+            data_adv = untarget_attack(self.attacker, data, target)
             # noisy, eleven = ele_attack(self.attacker, data, target, self.device)
-            # noisy = data_adv-data
+            noisy = 0.5+(data_adv-data)*16   # 16 24 32
             eleven = self.num_class*torch.ones_like(target)
             _model_unfreeze(self.model)
 
-            inputs = torch.cat((data_adv, data_adv-data), dim=0)
+            inputs = torch.cat((data_adv, noisy), dim=0)
             target = torch.cat((target, eleven), dim=0)
 
             output = self.model(inputs)
@@ -128,7 +128,7 @@ class EleRunner():
             for batch_idx, (data, target) in enumerate(self.train_loader):
                 data, target = data.to(self.device), target.to(self.device)
                 
-                output = self.model(data)
+                output = self.model(data)[:,:self.num_class]
                 loss = self.criterion(output, target)
                 loss_meter.update(loss.item())
                 pred = output.argmax(dim=1)
@@ -151,7 +151,7 @@ class EleRunner():
             for batch_idx, (data, target) in enumerate(self.test_loader):
                 data, target = data.to(self.device), target.to(self.device)
                 
-                output = self.model(data)
+                output = self.model(data)[:,:self.num_class]
                 loss = self.criterion(output, target)
                 loss_meter.update(loss.item())
                 pred = output.argmax(dim=1)
@@ -178,7 +178,7 @@ class EleRunner():
             _model_unfreeze(self.model)
             
             with torch.no_grad():
-                output = self.model(data)
+                output = self.model(data)[:,:self.num_class]
                 loss = self.criterion(output, target)
                 loss_meter.update(loss.item())
                 pred = output.argmax(dim=1)

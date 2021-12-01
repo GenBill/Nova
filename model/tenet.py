@@ -54,11 +54,11 @@ class tenet18_small(nn.Module):
         self.encoder.apply(_init_weight)
         
         self.basic_net = nn.Sequential(self.encoder, self.classifier)
-        # self.attacker = LinfPGDAttack(
-        #     self.basic_net, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=8/255, nb_iter=1, 
-        #     rand_init=False, clip_min=0.0, clip_max=1.0, targeted=True, 
-        # )
-        self.attacker = FGSM(self.basic_net, eps=8/255, targeted=True)
+        self.attacker = LinfPGDAttack(
+            self.basic_net, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
+            rand_init=False, clip_min=0.0, clip_max=1.0, targeted=True, 
+        )
+        # self.attacker = FGSM(self.basic_net, eps=8/255, targeted=True)
     
     def forward_plain(self, x):
         # x_norm = self.norm(x)

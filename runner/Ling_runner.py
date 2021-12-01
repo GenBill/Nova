@@ -24,7 +24,7 @@ def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
 
-class LinfRunner():
+class LingRunner():
     def __init__(self, epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=10):
         self.device = device
         self.epochs = epochs
@@ -114,22 +114,22 @@ class LinfRunner():
         self.model.eval()
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
-        with torch.no_grad():
-            pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Train eval", progress))
-            for batch_idx, (data, target) in enumerate(self.train_loader):
-                data, target = data.to(self.device), target.to(self.device)
-                
-                output = self.model(data)
-                loss = self.criterion(output, target)
-                loss_meter.update(loss.item())
-                pred = output.argmax(dim=1)
+        
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Train eval", progress))
+        for batch_idx, (data, target) in enumerate(self.train_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            
+            output = self.model(data)
+            loss = self.criterion(output, target)
+            loss_meter.update(loss.item())
+            pred = output.argmax(dim=1)
 
-                true_positive = (pred == target).sum().item()
-                total = pred.shape[0]
-                accuracy_meter.update(true_positive, total)
-                
-                pbar.update(1)
-            pbar.close()
+            true_positive = (pred == target).sum().item()
+            total = pred.shape[0]
+            accuracy_meter.update(true_positive, total)
+            
+            pbar.update(1)
+        pbar.close()
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
@@ -137,48 +137,24 @@ class LinfRunner():
         self.model.eval()
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
-        with torch.no_grad():
-            pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Clean eval", progress))
-            for batch_idx, (data, target) in enumerate(self.test_loader):
-                data, target = data.to(self.device), target.to(self.device)
-                
-                output = self.model(data)
-                loss = self.criterion(output, target)
-                loss_meter.update(loss.item())
-                pred = output.argmax(dim=1)
 
-                true_positive = (pred == target).sum().item()
-                total = pred.shape[0]
-                accuracy_meter.update(true_positive, total)
-                
-                pbar.update(1)
-            pbar.close()
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Clean eval", progress))
+        for batch_idx, (data, target) in enumerate(self.test_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            
+            output = self.model(data)
+            loss = self.criterion(output, target)
+            loss_meter.update(loss.item())
+            pred = output.argmax(dim=1)
+
+            true_positive = (pred == target).sum().item()
+            total = pred.shape[0]
+            accuracy_meter.update(true_positive, total)
+            
+            pbar.update(1)
+        pbar.close()
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
-
-    def clean_eval_2(self, progress):
-        self.model.eval()
-        loss_meter = AverageMeter()
-        true_meter = AverageMeter()
-        with torch.no_grad():
-            pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Clean eval_2", progress))
-            for batch_idx, (data, target) in enumerate(self.test_loader):
-                data, target = data.to(self.device), target.to(self.device)
-
-                output = torch.softmax(self.model(data), dim=1)
-                
-                P_1st = output.max(dim=1)[0]
-                P_true = output.gather(1, target.unsqueeze(1))
-                loss = torch.mean(P_1st - P_true)
-                true = torch.mean(P_true)
-
-                loss_meter.update(loss.item())
-                true_meter.update(true.item())
-                
-                pbar.update(1)
-            pbar.close()
-        
-        return (loss_meter.report(), true_meter.report())
 
     def adv_eval(self, progress):
         self.model.eval()
@@ -192,47 +168,19 @@ class LinfRunner():
             data = untarget_attack(self.attacker, data, target)
             _model_unfreeze(self.model)
             
-            with torch.no_grad():
-                output = self.model(data)
-                loss = self.criterion(output, target)
-                loss_meter.update(loss.item())
-                pred = output.argmax(dim=1)
+            output = self.model(data)
+            loss = self.criterion(output, target)
+            loss_meter.update(loss.item())
+            pred = output.argmax(dim=1)
 
-                true_positive = (pred == target).sum().item()
-                total = pred.shape[0]
-                accuracy_meter.update(true_positive, total)
+            true_positive = (pred == target).sum().item()
+            total = pred.shape[0]
+            accuracy_meter.update(true_positive, total)
             pbar.update(1)
 
         pbar.close()
         
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
-    
-    def adv_eval_2(self, progress):
-        self.model.eval()
-        loss_meter = AverageMeter()
-        true_meter = AverageMeter()
-        
-        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval_2", progress))
-        for batch_idx, (data, target) in enumerate(self.test_loader):
-            data, target = data.to(self.device), target.to(self.device)
-            _model_freeze(self.model)
-            data = untarget_attack(self.attacker, data, target)
-            _model_unfreeze(self.model)
-
-            with torch.no_grad():
-                output = torch.softmax(self.model(data), dim=1)
-                P_1st = output.max(dim=1)[0]
-                P_true = output.gather(1, target.unsqueeze(1))
-                loss = torch.mean(P_1st - P_true)
-                true = torch.mean(P_true)
-
-                loss_meter.update(loss.item())
-                true_meter.update(true.item())
-                pbar.update(1)
-            
-            pbar.close()
-        
-        return (loss_meter.report(), true_meter.report())
 
     def train(self, adv=True):
         (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")

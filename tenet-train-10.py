@@ -11,7 +11,7 @@ from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar100
 
 from model import tenet18_small
-from runner import LinfRunner as DistRunner
+from runner import LingRunner as DistRunner
 from utils import get_device_id
 
 from advertorch.attacks import LinfPGDAttack
@@ -45,20 +45,21 @@ def run(lr, epochs, batch_size):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
     model = tenet18_small(n_class=train_dataset.class_num).to(device)
-    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, 
-        find_unused_parameters = True, broadcast_buffers = False)
+    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
+        # find_unused_parameters = True, broadcast_buffers = False)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 110], gamma=0.1)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="mean"), eps=8/255, eps_iter=2/255, nb_iter=10, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
 
     criterion = nn.CrossEntropyLoss()
 
     runner = DistRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device)
+    runner.eval_interval = 5
     runner.train(adv=False)
 
     if torch.distributed.get_rank() == 0:

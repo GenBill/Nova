@@ -4,7 +4,7 @@ from torchvision import models
 import copy
 import numpy as np
 
-from advertorch.attacks import LinfPGDAttack
+from advertorch.attacks import LinfPGDAttack, FGSM
 
 def _init_weight(m):
     classname = m.__class__.__name__
@@ -13,6 +13,14 @@ def _init_weight(m):
     elif classname.find('BatchNorm') != -1 and len(m.weight.shape) > 1:
         nn.init.kaiming_normal_(m.weight.data)
         nn.init.constant_(m.weight.bias)
+
+def _model_freeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=False
+
+def _model_unfreeze(model) -> None:
+    for param in model.parameters():
+        param.requires_grad=True
 
 class tenet18(nn.Module):
     def __init__(self, n_class, mean=None, std=None):
@@ -44,10 +52,13 @@ class tenet18_small(nn.Module):
         self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=False)
         
         self.encoder.apply(_init_weight)
-        self.attacker = LinfPGDAttack(
-            self, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
-            rand_init=False, clip_min=0.0, clip_max=1.0, targeted=True, 
-        )
+        
+        self.basic_net = nn.Sequential(self.encoder, self.classifier)
+        # self.attacker = LinfPGDAttack(
+        #     self.basic_net, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=8/255, nb_iter=1, 
+        #     rand_init=False, clip_min=0.0, clip_max=1.0, targeted=True, 
+        # )
+        self.attacker = FGSM(self.basic_net, eps=8/255, targeted=True)
     
     def forward_plain(self, x):
         # x_norm = self.norm(x)
@@ -57,13 +68,18 @@ class tenet18_small(nn.Module):
 
         return y
 
-    def forward(self, x):
+    def forward(self, x, plain=False):
+        if plain:
+            return self.forward_plain(x)
+        
         y = 0
+        target = torch.zeros(x.shape[0], dtype=int, device=x.device)
         for i in range(self.n_class):
-            target = i*torch.ones(x.shape[0], device=x.device)
-            x_tar = self.attacker.perturb(x, target)
-
-            f_tar = self.encoder(x_tar)
+            _model_freeze(self.basic_net)
+            noisy_tar = (self.attacker.perturb(x, target)-x).detach()
+            _model_unfreeze(self.basic_net)
+            f_tar = self.encoder(x+noisy_tar)
             y += self.classifier(f_tar)
+            target += 1
 
-        return y
+        return y/self.n_class

@@ -41,6 +41,7 @@ class DesRunner():
 
         self.ImageLoss = torch.nn.MSELoss()
         self.lamb = lamb
+        self.lamb_decay = 0.9
 
         self.desc = lambda status, progress: f"{status}: {progress}"
         
@@ -72,10 +73,10 @@ class DesRunner():
         for batch_idx, (data, target) in enumerate(self.train_loader):
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
-            noisy = untarget_attack(self.attacker, data, target)-data
+            noisy = (untarget_attack(self.attacker, data, target)-data).detach()
             _model_unfreeze(self.model)
-
-            _, f0, f1, f2, f3 = self.model(data-noisy, True)
+            with torch.no_grad():
+                _, f0, f1, f2, f3 = self.model(data-noisy, True)
             y_adv, f0_adv, f1_adv, f2_adv, f3_adv = self.model(data+noisy, True)
             
             loss_main = self.criterion(y_adv, target)
@@ -206,6 +207,7 @@ class DesRunner():
 
         for epoch_idx in range(self.epochs):
             if adv:
+                self.lamb *= self.lamb_decay
                 avg_loss = self.adv_step("{}/{}".format(epoch_idx, self.epochs))
             else:
                 avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))

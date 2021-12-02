@@ -49,7 +49,7 @@ def run(lr, epochs, batch_size):
         # find_unused_parameters = True, broadcast_buffers = False)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 110], gamma=0.1)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 140], gamma=0.1)
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -69,7 +69,7 @@ def run(lr, epochs, batch_size):
 if __name__ == '__main__':
     
     lr = 1e-1
-    epochs = 120
+    epochs = 150
     batch_size = 32     # 16*8  32*4
     manualSeed = 2049   # 2077
 

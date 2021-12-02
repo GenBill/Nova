@@ -63,7 +63,7 @@ def run(lr, epochs, batch_size):
     runner.train(adv=True)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/desnet-final-cifar10.pth')
+        torch.save(model.state_dict(), './checkpoint/desnet-final-cifar10-merge.pth')
         print('Save model.')
 
 if __name__ == '__main__':

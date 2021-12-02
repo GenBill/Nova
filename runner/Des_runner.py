@@ -71,14 +71,26 @@ class DesRunner():
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
         for batch_idx, (data, target) in enumerate(self.train_loader):
+            batch_size = target.shape[0]
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
-            noisy = (untarget_attack(self.attacker, data, target)-data).detach()
+            noisy = untarget_attack(self.attacker, data, target)-data
             _model_unfreeze(self.model)
+            
+            ## 分离算法
+            '''
             with torch.no_grad():
                 _, f0, f1, f2, f3 = self.model(data-noisy, True)
             y_adv, f0_adv, f1_adv, f2_adv, f3_adv = self.model(data+noisy, True)
+            '''
+            ## 合并算法
+            inputs = torch.cat((data-noisy, data+noisy), dim=0)
+            y_p, f0_p, f1_p, f2_p, f3_p = self.model(inputs, True)
             
+            f0, f1, f2, f3 = f0_p[:batch_size], f1_p[:batch_size], f2_p[:batch_size], f3_p[:batch_size]
+            y_adv, f0_adv, f1_adv, f2_adv, f3_adv = y_p[batch_size:], f0_p[batch_size:], f1_p[batch_size:], f2_p[batch_size:], f3_p[batch_size:]
+
+            ## Count Loss
             loss_main = self.criterion(y_adv, target)
             loss_reg = self.ImageLoss(f0,f0_adv) + self.ImageLoss(f1,f1_adv)+ self.ImageLoss(f2,f2_adv) + self.ImageLoss(f3,f3_adv)
             loss = loss_main + loss_reg*self.lamb

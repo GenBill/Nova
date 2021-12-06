@@ -3,7 +3,9 @@ from .Trans_runner import TransRunner
 
 from .Linf_runner import LinfRunner
 from .Ling_runner import LingRunner
+
 from .Des_runner import DesRunner
+from .Self_runner import SelfRunner
 
 from .Frost_runner import FrostRunner
 from .Frost_runner_DP import FrostRunner_DP

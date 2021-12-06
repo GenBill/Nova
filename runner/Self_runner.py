@@ -11,6 +11,24 @@ def _model_unfreeze(model) -> None:
     for param in model.parameters():
         param.requires_grad=True
 
+
+def kd_loss_function(output, target_output, temperature):
+    """Compute kd loss"""
+    """
+    para: output: middle ouptput logits.
+    para: target_output: final output has divided by temperature and softmax.
+    """
+
+    output = output / temperature
+    output_log_softmax = torch.log_softmax(output, dim=1)
+    loss_kd = -torch.mean(torch.sum(output_log_softmax * target_output, dim=1))
+    return loss_kd
+
+def feature_loss_function(fea, target_fea):
+    loss = (fea - target_fea)**2 * ((fea > 0) | (target_fea > 0)).float()
+    return torch.abs(loss).sum()
+
+
 def target_attack(adversary, inputs, true_target, num_class, device):
     target = torch.randint(low=0, high=num_class-1, size=true_target.shape, device=device)
     # Ensure target != true_target
@@ -24,7 +42,8 @@ def untarget_attack(adversary, inputs, true_target):
     adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
 
-class DesRunner():
+
+class SelfRunner():
     def __init__(self, epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=10, lamb=1.0):
         self.device = device
         self.epochs = epochs
@@ -40,33 +59,51 @@ class DesRunner():
         self.attacker = attacker
 
         # self.ImageLoss = torch.nn.MSELoss()
-        self.lamb = lamb
-        self.lamb_decay = 1.0
+
+        self.temperature = 3
+        self.alpha = 0.1
+        self.beta = 1e-6
+
 
         self.desc = lambda status, progress: f"{status}: {progress}"
-    
-    def ImageLoss(self, x, y):
-        batch_size = x.shape[0]
-        # return torch.mean(torch.norm((x-y).view(batch_size,-1), dim=1))
-        temp = (x-y).view(batch_size,-1)
-        # return torch.mean(torch.sqrt(torch.mean(temp*temp, dim=1)))
-        return torch.mean(torch.mean(temp**4, dim=1))
-        # return torch.norm(x-y)
 
     def clean_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Clean train", progress))
         for batch_idx, (data, target) in enumerate(self.train_loader):
+            # batch_size = target.shape[0]
             data, target = data.to(self.device), target.to(self.device)
             
-            output = self.model(data)
-            loss = self.criterion(output, target)
-            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
-            loss_meter.update(loss.item())
+            output, middle_output1, middle_output2, middle_output3, \
+            final_fea, middle1_fea, middle2_fea, middle3_fea = self.model(data, train=True)
 
+            ## Count CE Loss
+            loss = self.criterion(output, target)
+            middle1_loss = self.criterion(middle_output1, target)
+            middle2_loss = self.criterion(middle_output2, target)
+            middle3_loss = self.criterion(middle_output3, target)
+
+            ## Count KL Loss
+            temp4 = torch.softmax(output /self.temperature, dim=1)
+            loss1by4 = kd_loss_function(middle_output1, temp4.detach(), self.temperature) * (self.temperature**2)
+            loss2by4 = kd_loss_function(middle_output2, temp4.detach(), self.temperature) * (self.temperature**2)
+            loss3by4 = kd_loss_function(middle_output3, temp4.detach(), self.temperature) * (self.temperature**2)
+            
+            ## Count Hints
+            feature_loss_1 = feature_loss_function(middle1_fea, final_fea.detach()) 
+            feature_loss_2 = feature_loss_function(middle2_fea, final_fea.detach()) 
+            feature_loss_3 = feature_loss_function(middle3_fea, final_fea.detach()) 
+
+            total_loss = (1 - self.alpha) * (loss + middle1_loss + middle2_loss + middle3_loss) + \
+                        self.alpha * (loss1by4 + loss2by4 + loss3by4) + \
+                        self.beta * (feature_loss_1 + feature_loss_2 + feature_loss_3)
+
+            pbar.set_postfix_str("Loss {:.6f}".format(total_loss.item()))
+            loss_meter.update(total_loss.item())
+            
             self.optimizer.zero_grad()
-            loss.backward()
+            total_loss.backward()
             self.optimizer.step()
             
             pbar.update(1)
@@ -79,34 +116,92 @@ class DesRunner():
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
         for batch_idx, (data, target) in enumerate(self.train_loader):
-            batch_size = target.shape[0]
+            # batch_size = target.shape[0]
             data, target = data.to(self.device), target.to(self.device)
             _model_freeze(self.model)
-            noisy = untarget_attack(self.attacker, data, target)-data
+            data = untarget_attack(self.attacker, data, target)
             _model_unfreeze(self.model)
             
-            ## 分离算法
-            '''
-            with torch.no_grad():
-                _, f0, f1, f2, f3 = self.model(data-noisy, True)
-            y_adv, f0_adv, f1_adv, f2_adv, f3_adv = self.model(data+noisy, True)
-            '''
-            ## 合并算法
-            inputs = torch.cat((data-noisy, data+noisy), dim=0)
-            y_p, f0_p, f1_p, f2_p, f3_p = self.model(inputs, True)
+            output, middle_output1, middle_output2, middle_output3, \
+            final_fea, middle1_fea, middle2_fea, middle3_fea = self.model(data, train=True)
+
+            ## Count CE Loss
+            loss = self.criterion(output, target)
+            middle1_loss = self.criterion(middle_output1, target)
+            middle2_loss = self.criterion(middle_output2, target)
+            middle3_loss = self.criterion(middle_output3, target)
+
+            ## Count KL Loss
+            temp4 = torch.softmax(output /self.temperature, dim=1)
+            loss1by4 = kd_loss_function(middle_output1, temp4.detach(), self.temperature) * (self.temperature**2)
+            loss2by4 = kd_loss_function(middle_output2, temp4.detach(), self.temperature) * (self.temperature**2)
+            loss3by4 = kd_loss_function(middle_output3, temp4.detach(), self.temperature) * (self.temperature**2)
             
-            f0, f1, f2, f3 = f0_p[:batch_size], f1_p[:batch_size], f2_p[:batch_size], f3_p[:batch_size]
-            y_adv, f0_adv, f1_adv, f2_adv, f3_adv = y_p[batch_size:], f0_p[batch_size:], f1_p[batch_size:], f2_p[batch_size:], f3_p[batch_size:]
+            ## Count Hints
+            feature_loss_1 = feature_loss_function(middle1_fea, final_fea.detach()) 
+            feature_loss_2 = feature_loss_function(middle2_fea, final_fea.detach()) 
+            feature_loss_3 = feature_loss_function(middle3_fea, final_fea.detach()) 
 
-            ## Count Loss
-            loss_main = self.criterion(y_adv, target)
-            loss_reg = self.ImageLoss(f0,f0_adv) + self.ImageLoss(f1,f1_adv)+ self.ImageLoss(f2,f2_adv) + self.ImageLoss(f3,f3_adv)
-            loss = loss_main + loss_reg*self.lamb
-            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
-            loss_meter.update(loss.item())
+            total_loss = (1 - self.alpha) * (loss + middle1_loss + middle2_loss + middle3_loss) + \
+                        self.alpha * (loss1by4 + loss2by4 + loss3by4) + \
+                        self.beta * (feature_loss_1 + feature_loss_2 + feature_loss_3)
 
+            pbar.set_postfix_str("Loss {:.6f}".format(total_loss.item()))
+            loss_meter.update(total_loss.item())
+            
             self.optimizer.zero_grad()
-            loss.backward()
+            total_loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+    
+    def emadv_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for batch_idx, (data, target) in enumerate(self.train_loader):
+            # batch_size = target.shape[0]
+            data, target = data.to(self.device), target.to(self.device)
+            _model_freeze(self.model)
+            data = untarget_attack(self.attacker, data, target)
+            _model_unfreeze(self.model)
+            
+            output, middle_output1, middle_output2, middle_output3, \
+            final_fea, middle1_fea, middle2_fea, middle3_fea = self.model(data, train=True)
+
+            ## Count CE Loss
+            loss = self.criterion(output, target)
+            middle1_loss = self.criterion(middle_output1, target)
+            middle2_loss = self.criterion(middle_output2, target)
+            middle3_loss = self.criterion(middle_output3, target)
+
+            ## Count KL Loss
+            temp4 = (output+middle_output1+middle_output2+middle_output3)/4
+            temp4 = torch.softmax(temp4/self.temperature, dim=1)
+            loss0by4 = kd_loss_function(output, temp4.detach(), self.temperature) * (self.temperature**2)
+            loss1by4 = kd_loss_function(middle_output1, temp4.detach(), self.temperature) * (self.temperature**2)
+            loss2by4 = kd_loss_function(middle_output2, temp4.detach(), self.temperature) * (self.temperature**2)
+            loss3by4 = kd_loss_function(middle_output3, temp4.detach(), self.temperature) * (self.temperature**2)
+            
+            ## Count Hints
+            final_hints = (final_fea+middle1_fea+middle2_fea+middle3_fea)/4
+            feature_loss_0 = feature_loss_function(final_fea, final_hints.detach()) 
+            feature_loss_1 = feature_loss_function(middle1_fea, final_hints.detach()) 
+            feature_loss_2 = feature_loss_function(middle2_fea, final_hints.detach()) 
+            feature_loss_3 = feature_loss_function(middle3_fea, final_hints.detach()) 
+
+            total_loss = (1 - self.alpha) * (loss + middle1_loss + middle2_loss + middle3_loss) + \
+                        self.alpha * (loss0by4 + loss1by4 + loss2by4 + loss3by4) + \
+                        self.beta * (feature_loss_0 + feature_loss_1 + feature_loss_2 + feature_loss_3)
+
+            pbar.set_postfix_str("Loss {:.6f}".format(total_loss.item()))
+            loss_meter.update(total_loss.item())
+            
+            self.optimizer.zero_grad()
+            total_loss.backward()
             self.optimizer.step()
             
             pbar.update(1)
@@ -227,8 +322,57 @@ class DesRunner():
 
         for epoch_idx in range(self.epochs):
             if adv:
-                self.lamb *= self.lamb_decay
                 avg_loss = self.adv_step("{}/{}".format(epoch_idx, self.epochs))
+            else:
+                avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                if adv:
+                    tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+                else:
+                    tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                avg_loss, acc_sum, acc_count = self.train_eval("{}/{}".format(epoch_idx, self.epochs))
+                avg_loss = collect(avg_loss, self.device)
+                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+                if torch.distributed.get_rank() == 0:
+                    tqdm.write("Eval (Train) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+                
+                avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
+                avg_loss = collect(avg_loss, self.device)
+                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+                if torch.distributed.get_rank() == 0:
+                    tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+                    
+                avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
+                avg_loss = collect(avg_loss, self.device)
+                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+                if torch.distributed.get_rank() == 0:
+                    tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+    
+    def emtrain(self, adv=True):
+        (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        
+
+        for epoch_idx in range(self.epochs):
+            if adv:
+                avg_loss = self.emadv_step("{}/{}".format(epoch_idx, self.epochs))
             else:
                 avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
             avg_loss = collect(avg_loss, self.device)

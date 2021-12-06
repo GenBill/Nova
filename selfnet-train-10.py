@@ -10,8 +10,8 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar10, Cifar100
 
-from model import desnet18_small
-from runner import DesRunner
+from model import multi_resnet18_kd
+from runner import SelfRunner
 from utils import get_device_id
 
 from advertorch.attacks import LinfPGDAttack
@@ -44,9 +44,9 @@ def run(lr, epochs, batch_size):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
 
-    model = desnet18_small(n_class=train_dataset.class_num).to(device)
-    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
-        # find_unused_parameters = True, broadcast_buffers = False)
+    model = multi_resnet18_kd(train_dataset.class_num).to(device)
+    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, 
+        find_unused_parameters = True, broadcast_buffers = False)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 140], gamma=0.1)
@@ -58,12 +58,12 @@ def run(lr, epochs, batch_size):
 
     criterion = nn.CrossEntropyLoss()
 
-    runner = DesRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=10, lamb=1e-2)
+    runner = SelfRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, device, num_class=10)
     runner.eval_interval = 5
-    runner.train(adv=True)
+    runner.emtrain(adv=True)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/desnet-final-cifar10-merge-1e-2.pth')
+        torch.save(model.state_dict(), './checkpoint/selfnet-final-cifar10-em.pth')
         print('Save model.')
 
 if __name__ == '__main__':

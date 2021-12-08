@@ -123,7 +123,7 @@ class EvalRunner():
         _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
-    def StarKnife_eval(self, progress, nb_iter=100, mana=4, class_num=10, rand_init=False, targeted=False):
+    def StarKnife_eval(self, progress, nb_iter=100, mana=4, class_num=10, rand_init=False, targeted=False, doubled=True):
         self.model.eval()
         _model_freeze(self.model)
         accuracy_meter = AverageMeter()
@@ -135,7 +135,7 @@ class EvalRunner():
 
         attacker = StarKnifePGD(
             self.model, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
-            mana=mana, class_num=class_num, rand_init=rand_init, targeted=targeted, 
+            mana=mana, class_num=class_num, rand_init=rand_init, targeted=targeted, doubled=doubled
         )
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))

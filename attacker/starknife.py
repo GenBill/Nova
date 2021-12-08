@@ -94,7 +94,7 @@ class StarKnifePGD(nn.Module):
     """Projected Gradient Decent(PGD) attack.
     Can be used to adversarial training.
     """
-    def __init__(self, model, eps=8/255, eps_iter=2/255, nb_iter=20, mana=100, class_num=10, criterion=None, rand_init=True, targeted=False):
+    def __init__(self, model, eps=8/255, eps_iter=2/255, nb_iter=20, mana=100, class_num=10, criterion=None, rand_init=True, targeted=False, doubled=True):
         super(StarKnifePGD, self).__init__()
         # Arguments of PGD
         self.device = next(model.parameters()).device
@@ -106,6 +106,7 @@ class StarKnifePGD(nn.Module):
         self.mana = mana
         self.rand_init = rand_init
         self.targeted = targeted    # False
+        self.doubled = doubled
         self.class_num = class_num
 
         self.criterion = criterion
@@ -210,7 +211,6 @@ class StarKnifePGD(nn.Module):
         return x_adv
 
 
-
     def perturb(self, x, y):
         ## Init Mana
         self.model.eval()
@@ -224,6 +224,51 @@ class StarKnifePGD(nn.Module):
         ind_to_fool = acc.nonzero().squeeze()
         adv = x.clone()
         adv_elder = []
+
+        if self.doubled:
+            for mana_ind in range(self.mana):
+                if len(ind_to_fool.shape) == 0:
+                    ind_to_fool = ind_to_fool.unsqueeze(0)
+                if ind_to_fool.numel() != 0:
+                    x_to_fool = x[ind_to_fool].clone()
+                    y_to_fool = y[ind_to_fool].clone()
+
+                    adv_curr = self.attack_single_run(x_to_fool, y_to_fool, adv_elder)
+                    acc_curr = self.model(adv_curr).max(1)[1] == y_to_fool
+                    ind_curr = (acc_curr == 0).nonzero().squeeze()
+                    true_ind_curr = (acc_curr == 1).nonzero().squeeze()
+
+                    acc[ind_to_fool[ind_curr]] = 0
+                    adv[ind_to_fool[ind_curr]] = adv_curr[ind_curr].clone()
+                    for i, adv_nth in enumerate(adv_elder):
+                        adv_elder[i] = adv_nth[true_ind_curr].clone()
+                    adv_elder.append(adv_curr[true_ind_curr].detach().clone())
+                    ind_to_fool = ind_to_fool[true_ind_curr].clone()
+            
+            for this_tar in range(self.class_num):
+                adv_elder = []
+                for mana_ind in range(self.mana):
+                    if len(ind_to_fool.shape) == 0:
+                        ind_to_fool = ind_to_fool.unsqueeze(0)
+                    if ind_to_fool.numel() != 0:
+                        x_to_fool = x[ind_to_fool].clone()
+                        y_to_fool = y[ind_to_fool].clone()
+                        tar_to_fool = this_tar*torch.ones_like(y_to_fool)
+
+                        adv_curr = self.target_single_run(x_to_fool, tar_to_fool, adv_elder)
+                        acc_curr = self.model(adv_curr).max(1)[1] == y_to_fool
+                        ind_curr = (acc_curr == 0).nonzero().squeeze()
+                        true_ind_curr = (acc_curr == 1).nonzero().squeeze()
+
+                        acc[ind_to_fool[ind_curr]] = 0
+                        adv[ind_to_fool[ind_curr]] = adv_curr[ind_curr].clone()
+                        for i, adv_nth in enumerate(adv_elder):
+                            adv_elder[i] = adv_nth[true_ind_curr].clone()
+                        adv_elder.append(adv_curr[true_ind_curr].detach().clone())
+                        ind_to_fool = ind_to_fool[true_ind_curr].clone()
+
+            _model_unfreeze(self.model)
+            return adv
 
         if self.targeted:
             for this_tar in range(self.class_num):
@@ -272,8 +317,8 @@ class StarKnifePGD(nn.Module):
                         adv_elder[i] = adv_nth[true_ind_curr].clone()
                     adv_elder.append(adv_curr[true_ind_curr].detach().clone())
                     ind_to_fool = ind_to_fool[true_ind_curr].clone()
-                print(mana_ind, 'this ACC', true_ind_curr.shape[0], '/', x.shape[0], '=', true_ind_curr.shape[0]/x.shape[0])
+                # print(mana_ind, 'this ACC', true_ind_curr.shape[0], '/', x.shape[0], '=', true_ind_curr.shape[0]/x.shape[0])
             
-            print('ACC', true_ind_curr.shape[0], '/', x.shape[0], '=', true_ind_curr.shape[0]/x.shape[0])
+            # print('ACC', true_ind_curr.shape[0], '/', x.shape[0], '=', true_ind_curr.shape[0]/x.shape[0])
             _model_unfreeze(self.model)
             return adv

@@ -83,16 +83,10 @@ def onlyeval(checkpoint_list, batch_size):
         # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
         # if torch.distributed.get_rank() == 0:
         #     print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+            
         
         # Test on Star Knife
-        avg_loss, acc_sum, acc_count = runner.StarKnife_eval("Eval Star Knife", nb_iter=200, mana=10, class_num=10, rand_init=False, targeted=False)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (Star Knife) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-        
-        # Test on Star Knife
-        avg_loss, acc_sum, acc_count = runner.StarKnife_eval("Eval Target Star Knife", nb_iter=200, mana=10, class_num=10, rand_init=False, targeted=True)
+        avg_loss, acc_sum, acc_count = runner.StarKnife_eval("Eval Double Star Knife", nb_iter=200, mana=10, class_num=10, rand_init=False, targeted=True, doubled=True)
         avg_loss = collect(avg_loss, runner.device)
         avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
         if torch.distributed.get_rank() == 0:

@@ -25,4 +25,8 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=4, p
 
 print(train_dataset.classes)
 
+testlist = [1,2,3,4,5,6,7,8]*4
+ind = [2,4,6,8,10]
+print(testlist[ind])
+
 

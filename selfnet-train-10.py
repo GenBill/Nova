@@ -16,6 +16,8 @@ from utils import get_device_id
 
 from advertorch.attacks import LinfPGDAttack
 
+from utils.scheduler_list import Scheduler_List
+
 def run(lr, epochs, batch_size):
     torch.distributed.init_process_group(
         backend='nccl',
@@ -49,7 +51,10 @@ def run(lr, epochs, batch_size):
         find_unused_parameters = True, broadcast_buffers = False)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[120, 140], gamma=0.1)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[80, 130, 180], gamma=0.1)
+    scheduler2 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10], gamma=10)
+    scheduler = Scheduler_List([scheduler1, scheduler2])
+    
     # attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=7, random_start=True)
     attacker = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -68,8 +73,8 @@ def run(lr, epochs, batch_size):
 
 if __name__ == '__main__':
     
-    lr = 1e-1
-    epochs = 150
+    lr = 1e-2
+    epochs = 200
     batch_size = 32     # 16*8  32*4
     manualSeed = 2049   # 2077
 

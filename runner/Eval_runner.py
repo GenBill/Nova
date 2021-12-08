@@ -23,7 +23,7 @@ def _model_unfreeze(model) -> None:
         param.requires_grad=True
 
 def untarget_attack(adversary, inputs, true_target):
-    adversary.targeted = False
+    # adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
 
 class EvalRunner():
@@ -123,15 +123,19 @@ class EvalRunner():
         _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
-    def StarKnife_eval(self, progress, nb_iter=100):
+    def StarKnife_eval(self, progress, nb_iter=100, mana=4, class_num=10, rand_init=False, targeted=False):
         self.model.eval()
         _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
+        # attacker = StarKnifePGD(
+        #     self.model, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, mana=20, class_num=10, rand_init=True, targeted=False, 
+        # )
+
         attacker = StarKnifePGD(
-            self.model, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, mana=10,
-            rand_init=True, targeted=False, 
+            self.model, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+            mana=mana, class_num=class_num, rand_init=rand_init, targeted=targeted, 
         )
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))

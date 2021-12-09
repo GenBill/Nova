@@ -11,7 +11,7 @@ from advertorch.attacks import LinfPGDAttack as atk_PGD
 from advertorch.attacks import CarliniWagnerL2Attack as atk_CW
 from advertorch.attacks import LinfSPSAAttack
 
-from attacker import my_APGDAttack_targeted, StarKnifePGD
+from attacker import my_APGDAttack_targeted, StarKnifePGD, RiemKnifePGD
 from autoattack.square import SquareAttack
 
 def _model_freeze(model) -> None:
@@ -129,11 +129,39 @@ class EvalRunner():
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        # attacker = StarKnifePGD(
-        #     self.model, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, mana=20, class_num=10, rand_init=True, targeted=False, 
-        # )
-
         attacker = StarKnifePGD(
+            self.model, eps=8/255, eps_iter=1/255, nb_iter=nb_iter, 
+            mana=mana, class_num=class_num, rand_init=rand_init, targeted=targeted, doubled=doubled
+        )
+        
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
+        for batch_idx, (data, target) in enumerate(self.test_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            data = untarget_attack(attacker, data, target)
+            
+            with torch.no_grad():
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                loss_meter.update(loss.item())
+                pred = output.argmax(dim=1)
+
+                true_positive = (pred == target).sum().item()
+                total = pred.shape[0]
+                accuracy_meter.update(true_positive, total)
+            pbar.update(1)
+
+        pbar.close()
+        
+        _model_unfreeze(self.model)
+        return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
+    
+    def RiemKnife_eval(self, progress, nb_iter=100, mana=4, class_num=10, rand_init=False, targeted=False, doubled=True):
+        self.model.eval()
+        _model_freeze(self.model)
+        accuracy_meter = AverageMeter()
+        loss_meter = AverageMeter()
+
+        attacker = RiemKnifePGD(
             self.model, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
             mana=mana, class_num=class_num, rand_init=rand_init, targeted=targeted, doubled=doubled
         )

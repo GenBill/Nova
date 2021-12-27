@@ -31,6 +31,7 @@ def run(lr, epochs, batch_size):
     device = f'cuda:{device_id}'
 
     train_transforms = T.Compose([
+        T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
         Onepixel(32,32)
@@ -87,13 +88,13 @@ def run(lr, epochs, batch_size):
     runner.mmc_vertex_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/vertex_tar_mmc.pth')
+        torch.save(model.state_dict(), './checkpoint/vertex_tar_mmc_100.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.01
-    epochs = 480        # 320        # 240
-    batch_size = 128     # 64*4 = 128*2 = 256*1
+    epochs = 280        # 320        # 240
+    batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)

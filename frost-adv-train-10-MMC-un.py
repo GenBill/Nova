@@ -148,11 +148,11 @@ def run(lr, epochs, batch_size):
         model, loss_fn=criterion, eps=8/255, eps_iter=2/255, nb_iter=20, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
-    runner.mmc_vertex_tar(writer)
-    # runner.mmc_vertex_untar(writer)
+    # runner.mmc_vertex_tar(writer)
+    runner.mmc_vertex_untar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/vertex_tar_mmc.pth')
+        torch.save(model.state_dict(), './checkpoint/vertex_untar_mmc.pth')
         print('Save model.')
     
     onlyeval(model, device)
@@ -161,7 +161,7 @@ if __name__ == '__main__':
     lr = 0.01
     epochs = 280        # 320        # 240
     batch_size = 64    # 64*4 = 128*2 = 256*1
-    manualSeed = 2049   # 2077
+    manualSeed = 2049+1   # 2077
 
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)

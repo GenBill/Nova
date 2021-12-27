@@ -34,7 +34,7 @@ def run(lr, epochs, batch_size):
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
-        Onepixel(32,32)
+        # Onepixel(32,32)
     ])
     test_transforms = T.Compose([
         T.ToTensor(),
@@ -53,10 +53,10 @@ def run(lr, epochs, batch_size):
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
 
-    # scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
-    # scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
     # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100,110], gamma=0.1)
+    scheduler = Scheduler_List([scheduler1, scheduler2])
     
     attacker_untar = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -75,15 +75,15 @@ def run(lr, epochs, batch_size):
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 10
-    runner.wo_untar(writer)
+    runner.vertex_untar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/CE/wo_untar_CE.pth')
+        torch.save(model.state_dict(), './checkpoint/MSE/vertex_untar.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.1
-    epochs = 120        # 320        # 240
+    epochs = 280        # 320        # 240
     batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 

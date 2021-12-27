@@ -62,13 +62,16 @@ class EvalRunner():
         _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
-    def FGSM_eval(self, progress):
+    def FGSM_eval(self, progress, reloss=False):
         self.model.eval()
         _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = atk_FGSM(self.model, eps=8/255)
+        if reloss:
+            attacker = atk_FGSM(self.model, self.criterion, eps=8/255)
+        else:
+            attacker = atk_FGSM(self.model, eps=8/255)
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):
@@ -91,16 +94,22 @@ class EvalRunner():
         _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
-    def PGD_eval(self, progress, nb_iter=20):
+    def PGD_eval(self, progress, nb_iter=20, reloss=False):
         self.model.eval()
         _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = atk_PGD(
-            self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
-            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
-        )
+        if reloss:
+            attacker = atk_PGD(
+                self.model, loss_fn=self.criterion, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+            )
+        else:
+            attacker = atk_PGD(
+                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+            )
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):
@@ -248,13 +257,19 @@ class EvalRunner():
         _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
     
-    def Lipz_eval(self, nb_iter=100):
+    def Lipz_eval(self, nb_iter=100, reloss=False):
         self.model.eval()
         _model_freeze(self.model)
-        attacker = atk_PGD(
-            self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
-            rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
-        )
+        if reloss:
+            attacker = atk_PGD(
+                self.model, loss_fn=self.criterion, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+            )
+        else:
+            attacker = atk_PGD(
+                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+            )
 
         all_Lipz = 0
         sample_size = len(self.test_loader.dataset)

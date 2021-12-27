@@ -71,11 +71,11 @@ def onlyeval(checkpoint_list, batch_size):
             print("Eval (FGSM) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
         # # Test on PGD10
-        avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD10", nb_iter=10)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD10", nb_iter=10)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD10) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
         # # Test on PGD20
         avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD20", nb_iter=20)
@@ -106,24 +106,34 @@ if __name__ == '__main__':
 
     checkpoint_list = [
         # 'all_check/double_tar_280.pth',
-        'all_check/Frost/double_tar_CE.pth',
-        'all_check/Frost/double_untar_CE.pth',
-        'all_check/Frost/double_untar.pth',
+        # 'all_check/Frost/double_tar_CE.pth',
+        # 'all_check/Frost/double_untar_CE.pth',
+        # 'all_check/Frost/double_untar.pth',
 
-        'all_check/Frost/edge_tar_CE.pth',
-        'all_check/Frost/edge_tar.pth',
-        'all_check/Frost/edge_untar_CE.pth',
-        'all_check/Frost/edge_untar.pth',
+        # 'all_check/Frost/edge_tar_CE.pth',
+        # 'all_check/Frost/edge_tar.pth',
+        # 'all_check/Frost/edge_untar_CE.pth',
+        # 'all_check/Frost/edge_untar.pth',
 
-        'all_check/Frost/vertex_tar_CE.pth',
-        'all_check/Frost/vertex_tar.pth',
-        'all_check/Frost/vertex_untar_CE.pth',
-        'all_check/Frost/vertex_untar.pth',
+        # 'all_check/Frost/vertex_tar_CE.pth',
+        # 'all_check/Frost/vertex_tar.pth',
+        # 'all_check/Frost/vertex_untar_CE.pth',
+        # 'all_check/Frost/vertex_untar.pth',
 
-        'all_check/Frost/wo_tar_CE.pth',
-        'all_check/Frost/wo_tar.pth',
-        'all_check/Frost/wo_untar_CE.pth',
-        'all_check/Frost/wo_untar.pth',
+        # 'all_check/Frost/wo_tar_CE.pth',
+        # 'all_check/Frost/wo_tar.pth',
+        # 'all_check/Frost/wo_untar_CE.pth',
+        # 'all_check/Frost/wo_untar.pth',
+        
+        # 'checkpoint/CE/vertex_tar_CE.pth',
+        # 'checkpoint/CE/vertex_untar_CE.pth',
+        # 'checkpoint/CE/wo_tar_CE.pth',
+        # 'checkpoint/CE/wo_untar_CE.pth',
+
+        'checkpoint/MSE/vertex_tar.pth',
+        'checkpoint/MSE/vertex_untar.pth',
+        'checkpoint/MSE/wo_tar.pth',
+        'checkpoint/MSE/wo_untar.pth'
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

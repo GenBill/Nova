@@ -298,6 +298,34 @@ class FrostRunner():
 
         return loss_meter.report()
 
+    def mmc_vertex_untar_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs, labels in self.train_loader:
+
+            # batchSize = labels_0.shape[0]
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+            
+            _model_freeze(self.model)
+            adv_inputs = untarget_attack(self.attacker, inputs, labels)
+            _model_unfreeze(self.model)
+            inputs = Plain_Mix(adv_inputs, inputs, self.device)
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+
     def vertex_tar_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
@@ -943,6 +971,26 @@ class FrostRunner():
         for epoch_idx in range(self.epochs):
 
             avg_loss = self.mmc_vertex_tar_step("{}/{}".format(epoch_idx, self.epochs))
+
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_shower(epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+    
+    def mmc_vertex_untar(self, writer):
+        ## Add a Writer
+        self.add_shower(0)
+        for epoch_idx in range(self.epochs):
+
+            avg_loss = self.mmc_vertex_untar_step("{}/{}".format(epoch_idx, self.epochs))
 
             avg_loss = collect(avg_loss, self.device)
             if torch.distributed.get_rank() == 0:

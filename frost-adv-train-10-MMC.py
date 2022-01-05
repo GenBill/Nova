@@ -112,7 +112,7 @@ def run(lr, epochs, batch_size):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
 
     model = resnet18_small(256).to(device)
-    model = nn.Sequential(model, MM_LDA(10, 256, 10, device))
+    model = nn.Sequential(model, MM_LDA(1, 256, 10, device))   # MM_LDA(10, 256, 10, device))
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
@@ -155,10 +155,10 @@ def run(lr, epochs, batch_size):
         torch.save(model.state_dict(), './checkpoint/vertex_tar_mmc.pth')
         print('Save model.')
     
-    onlyeval(model, device)
+    # onlyeval(model, device)
 
 if __name__ == '__main__':
-    lr = 0.01
+    lr = 0.0032
     epochs = 280        # 320        # 240
     batch_size = 64    # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077

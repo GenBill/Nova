@@ -26,6 +26,40 @@ def untarget_attack(adversary, inputs, true_target):
     # adversary.targeted = False
     return adversary.perturb(inputs, true_target).detach()
 
+import numpy as np
+def one_hot_tensor(y_batch_tensor, num_classes, device):
+    y_tensor = torch.cuda.FloatTensor(y_batch_tensor.size(0),
+                                      num_classes).fill_(0)
+    y_tensor[np.arange(len(y_batch_tensor)), y_batch_tensor] = 1.0
+    return y_tensor
+
+class CWLoss(nn.Module):
+    def __init__(self, num_classes, margin=50, reduce=True):
+        super(CWLoss, self).__init__()
+        self.num_classes = num_classes
+        self.margin = margin
+        self.reduce = reduce
+        return
+
+    def forward(self, logits, targets):
+        """
+        :param inputs: predictions
+        :param targets: target labels
+        :return: loss
+        """
+        onehot_targets = one_hot_tensor(targets, self.num_classes, targets.device)
+
+        self_loss = torch.sum(onehot_targets * logits, dim=1)
+        other_loss = torch.max((1 - onehot_targets) * logits - onehot_targets * 1000, dim=1)[0]
+
+        loss = -torch.sum(torch.clamp(self_loss - other_loss + self.margin, 0))
+
+        if self.reduce:
+            sample_num = onehot_targets.shape[0]
+            loss = loss / sample_num
+
+        return loss
+
 class EvalRunner():
     def __init__(self, model, num_classes, test_loader, criterion, device):
         self.device = device
@@ -34,6 +68,7 @@ class EvalRunner():
         self.num_classes = num_classes
         self.test_loader = test_loader
         self.criterion = criterion
+        self.cwloss = CWLoss(num_classes, reduce=False)
 
         self.desc = lambda status, progress: f"{status}: {progress}"
 
@@ -108,6 +143,44 @@ class EvalRunner():
         else:
             attacker = atk_PGD(
                 self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+            )
+        
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
+        for batch_idx, (data, target) in enumerate(self.test_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            data = untarget_attack(attacker, data, target)
+            
+            with torch.no_grad():
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                loss_meter.update(loss.item())
+                pred = output.argmax(dim=1)
+
+                true_positive = (pred == target).sum().item()
+                total = pred.shape[0]
+                accuracy_meter.update(true_positive, total)
+            pbar.update(1)
+
+        pbar.close()
+        
+        _model_unfreeze(self.model)
+        return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
+    
+    def CWnum_eval(self, progress, nb_iter=20, reloss=False):
+        self.model.eval()
+        _model_freeze(self.model)
+        accuracy_meter = AverageMeter()
+        loss_meter = AverageMeter()
+
+        if reloss:
+            attacker = atk_PGD(
+                self.model, loss_fn=self.criterion, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
+            )
+        else:
+            attacker = atk_PGD(
+                self.model, loss_fn=self.cwloss, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
                 rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
             )
         

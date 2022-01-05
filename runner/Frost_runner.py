@@ -173,6 +173,49 @@ class FrostRunner():
             tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
             # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
             writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
+    
+    def final_shower(self, epoch_idx):
+        # train test
+        avg_loss, acc_sum, acc_count = self.train_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Train) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            # writer.add_scalar("train_Acc", avg_acc, epoch_idx)
+            # writer.add_scalar("train_Loss", avg_loss, epoch_idx)
+        
+        # clean test
+        avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            # writer.add_scalar("clean_Acc", avg_acc, epoch_idx)
+            # writer.add_scalar("clean_Loss", avg_loss, epoch_idx)
+
+        # std adv test
+        avg_loss, acc_sum, acc_count = self.std_adv_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+            # writer.add_scalar("adv_Acc", avg_acc, epoch_idx)
+            # writer.add_scalar("adv_Loss", avg_loss, epoch_idx)
+        
+        # std adv test
+        avg_loss, acc_sum, acc_count = self.std_adv100_eval("{}/{}".format(epoch_idx, self.epochs))
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+        
+        # Lipz test
+        # std_lipz = self.std_lipz_eval()
+        adv_lipz = self.adv_lipz_eval()
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
+            # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
+            # writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
 
     def wo_tar_step(self, progress):
         self.model.train()
@@ -692,6 +735,33 @@ class FrostRunner():
         _model_unfreeze(self.model)
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
+    def std_adv100_eval(self, progress):
+        self.model.eval()
+        _model_freeze(self.model)
+        accuracy_meter = AverageMeter()
+        loss_meter = AverageMeter()
+
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
+        for batch_idx, (data, target) in enumerate(self.test_loader):
+            data, target = data.to(self.device), target.to(self.device)
+            data = untarget_attack(self.lipz_attacker, data, target)
+
+            with torch.no_grad():
+                output = self.model(data)
+                loss = self.criterion(output, target)
+                loss_meter.update(loss.item())
+                pred = output.argmax(dim=1)
+
+                true_positive = (pred == target).sum().item()
+                total = pred.shape[0]
+                accuracy_meter.update(true_positive, total)
+                
+                pbar.update(1)
+        pbar.close()
+
+        _model_unfreeze(self.model)
+        return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
+
     def adv_lipz_eval(self):
         self.model.eval()
         _model_freeze(self.model)
@@ -984,6 +1054,7 @@ class FrostRunner():
                 self.scheduler.step()
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        self.final_shower(epoch_idx+2)
     
     def mmc_vertex_untar(self, writer):
         ## Add a Writer
@@ -1004,3 +1075,4 @@ class FrostRunner():
                 self.scheduler.step()
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+        self.final_shower(epoch_idx+2)

@@ -133,7 +133,8 @@ if __name__ == '__main__':
         'checkpoint/MSE/vertex_tar.pth',
         'checkpoint/MSE/vertex_untar.pth',
         'checkpoint/MSE/wo_tar.pth',
-        'checkpoint/MSE/wo_untar.pth'
+        'checkpoint/MSE/wo_untar.pth',
+        'checkpoint/MSE/none.pth'
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

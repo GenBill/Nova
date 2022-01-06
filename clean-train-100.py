@@ -10,7 +10,7 @@ from tqdm.auto import tqdm
 from attacker import L2PGD, LinfPGD
 from dataset import Cifar100, Cifar100
 
-from model import wideresnet34 as resnet18_small
+from model import resnet18_small
 from runner import LinfRunner as DistRunner
 from utils import get_device_id
 
@@ -46,9 +46,9 @@ def run(lr, epochs, batch_size):
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
-    model = resnet18_small(n_class=train_dataset.class_num).to(device)
-    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, 
-        find_unused_parameters = True, broadcast_buffers = False)
+    model = resnet18_small(n_class=train_dataset.class_num, pretrained=True).to(device)
+    model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
+        # find_unused_parameters = True, broadcast_buffers = False)
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 110], gamma=0.1)
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     
     lr = 1e-1
     epochs = 120
-    batch_size = 64
+    batch_size = 32
     manualSeed = 2049    # 2077
 
     random.seed(manualSeed)

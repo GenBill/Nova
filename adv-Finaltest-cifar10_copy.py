@@ -8,7 +8,7 @@ from torchvision import transforms as T
 from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
-from dataset import Cifar10, SVHN
+from dataset import Cifar10, Cifar10
 
 from model import resnet18_small
 # from model import resnet18_small_prime as resnet18_small    # wideresnet34 as resnet18_small
@@ -37,7 +37,7 @@ def onlyeval(checkpoint_list, batch_size):
         T.ToTensor()
     ])
     
-    test_dataset = SVHN(os.environ['DATAROOT'], transform=test_transforms, train=False)
+    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
@@ -115,10 +115,11 @@ def onlyeval(checkpoint_list, batch_size):
         avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
         if torch.distributed.get_rank() == 0:
             print("Eval (CW) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+            
 
 if __name__ == '__main__':
 
-    batch_size = 64
+    batch_size = 32
     manualSeed = 2049
 
     random.seed(manualSeed)
@@ -126,12 +127,12 @@ if __name__ == '__main__':
     writer = SummaryWriter('./runs/void')
 
     checkpoint_list = [
-        # 'all_check/svhn_double_tar.pth',
-        # 'checkpoint/svhn_vertex_tar.pth',
-        './checkpoint/clean-final-svhn.pth',
-        './checkpoint/adv-final-svhn.pth'
+        # 'all_check/double_tar_280.pth',
+        'checkpoint/clean-final-cifar10.pth',
+        'checkpoint/adv-final-cifar10.pth',
+        # 'checkpoint/MSE/vertex_tar.pth'
     ]
 
-    os.environ['DATAROOT'] = '~/Datasets/svhn'
+    os.environ['DATAROOT'] = '~/Datasets/cifar10'
     onlyeval(checkpoint_list, batch_size)
 

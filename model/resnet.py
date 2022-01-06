@@ -31,12 +31,12 @@ class resnet18(nn.Module):
         return y
 
 class resnet18_small(nn.Module):
-    def __init__(self, n_class, mean=None, std=None):
+    def __init__(self, n_class, mean=None, std=None, pretrained=False):
         super(resnet18_small, self).__init__()
         self.n_class = n_class
 
         # self.norm = Normalization(mean, std)
-        self.encoder = nn.Sequential(*list(models.resnet18(pretrained=False).children())[:-1]+[nn.Flatten()])
+        self.encoder = nn.Sequential(*list(models.resnet18(pretrained=pretrained).children())[:-1]+[nn.Flatten()])
         self.encoder[0] = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
         self.encoder[3] = nn.Identity()
         self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=False)

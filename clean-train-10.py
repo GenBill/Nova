@@ -8,9 +8,9 @@ from torchvision import transforms as T
 from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
-from dataset import Cifar100, Cifar100
+from dataset import Cifar10, Cifar100
 
-from model import PreActResNet18
+from model import resnet18_small
 from runner import LinfRunner as DistRunner
 from utils import get_device_id
 
@@ -36,15 +36,15 @@ def run(lr, epochs, batch_size):
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=False)
 
-    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=False)
+    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
-    model = PreActResNet18(num_classes=train_dataset.class_num).to(device)
+    model = resnet18_small(train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, 
         find_unused_parameters = True, broadcast_buffers = False)
 

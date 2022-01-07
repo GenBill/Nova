@@ -132,3 +132,5 @@ dmypy.json
 de_csv/*
 figs/*.png
 runs/*
+checkpoint/*
+checkpoint/*/*

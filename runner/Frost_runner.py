@@ -25,6 +25,9 @@ def _model_unfreeze(model) -> None:
     for param in model.parameters():
         param.requires_grad=True
 
+def label_smoothing(onehot, n_classes, factor):
+    return onehot * factor + (onehot - 1) * ((factor - 1)/(n_classes - 1))
+
 ## L2 Loss
 def soft_loss(pred, soft_targets):
     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
@@ -78,6 +81,15 @@ def Edge_Mix(adv_inputs_1, adv_inputs_2, device):
 def Plain_Mix(inputs_1, inputs_2, device):
     rand_lambda = torch.rand((inputs_1.shape[0],1,1,1), device=device)
     return rand_lambda*inputs_1 + (1-rand_lambda)*inputs_2
+
+def Soft_Mix(x_nat, x_ver, onehot, device):
+    y_nat = label_smoothing(onehot, onehot.shape[1], 0.8)
+    y_ver = label_smoothing(onehot, onehot.shape[1], 0.9)
+    rand_lambda = torch.rand((x_nat.shape[0],1,1,1), device=device)
+    x_ret = rand_lambda*x_nat + (1-rand_lambda)*x_ver
+    rand_lambda = rand_lambda.squeeze(3).squeeze(2)
+    y_ret = rand_lambda*y_nat + (1-rand_lambda)*y_ver
+    return x_ret, y_ret
 
 class FrostRunner():
     def __init__(self, epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, num_class, device):

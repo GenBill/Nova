@@ -9,7 +9,7 @@ from torchvision import datasets
 from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
-from dataset import Cifar100
+from dataset import Cifar10
 
 from model import resnet18_small
 from runner import FrostRunner
@@ -34,21 +34,21 @@ def run(lr, epochs, batch_size):
         T.RandomCrop(32, padding=4),
         T.RandomHorizontalFlip(),
         T.ToTensor(),
-        Onepixel(32,32)
+        # Onepixel(32,32)
     ])
     test_transforms = T.Compose([
         T.ToTensor(),
     ])
 
-    train_dataset = Cifar100(os.environ['DATAROOT'], transform=train_transforms, train=True)
+    train_dataset = Cifar10(os.environ['DATAROOT'], transform=train_transforms, train=True)
     train_sampler = torch.utils.data.distributed.DistributedSampler(train_dataset)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4, pin_memory=True)
 
-    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=False)
+    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=True)
 
-    model = resnet18_small(train_dataset.class_num, pretrained=True).to(device)
+    model = resnet18_small(train_dataset.class_num).to(device)
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
@@ -75,22 +75,22 @@ def run(lr, epochs, batch_size):
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 10
-    runner.vertex_tar(writer)
+    runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/vertex_tar_100.pth')
+        torch.save(model.state_dict(), './checkpoint/MSE/double_tar.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.032
+    lr = 0.1
     epochs = 280        # 320        # 240
-    batch_size = 32     # 64*4 = 128*2 = 256*1
+    batch_size = 64     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)
     torch.manual_seed(manualSeed)
 
-    writer = SummaryWriter('./runs/cifar100_vertex_tar')
+    writer = SummaryWriter('./runs/cifar10_double_tar')
 
-    os.environ['DATAROOT'] = '~/Datasets/cifar100'
+    os.environ['DATAROOT'] = '~/Datasets/cifar10'
     run(lr, epochs, batch_size)

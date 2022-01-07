@@ -1,5 +1,6 @@
 from .Eval_runner import EvalRunner
 from .Trans_runner import TransRunner
+from .Eval_runner_FS import EvalRunner_FS
 
 from .Linf_runner import LinfRunner
 from .Ling_runner import LingRunner

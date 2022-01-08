@@ -91,6 +91,25 @@ def Soft_Mix(x_nat, x_ver, onehot, device):
     y_ret = rand_lambda*y_nat + (1-rand_lambda)*y_ver
     return x_ret, y_ret
 
+def All_Mix(inputs_1, inputs_2, y_1, y_2, device):
+    rand_lambda = torch.rand((inputs_1.shape[0],1,1,1), device=device)
+    x_ret = rand_lambda*inputs_1 + (1-rand_lambda)*inputs_2
+    rand_lambda = rand_lambda.squeeze(3).squeeze(2)
+    y_ret = rand_lambda*y_1 + (1-rand_lambda)*y_2
+    return x_ret, y_ret
+
+def Uncert_Mix(inputs_1, inputs_2, y_1, y_2, device):
+    rand_lambda = torch.rand((inputs_1.shape[0],1,1,1), device=device)
+    x_ret = rand_lambda*inputs_1 + (1-rand_lambda)*inputs_2
+    
+    rand_lambda = rand_lambda.squeeze(3).squeeze(2)
+    y_mix = rand_lambda*y_1 + (1-rand_lambda)*y_2
+
+    uncert = torch.abs(rand_lambda-0.5)*2
+    y_uncert = label_smoothing(y_mix, y_mix.shape[1], 0.9)
+    y_ret = uncert*y_uncert + (1-uncert)*y_uncert
+    return x_ret, y_ret
+
 class FrostRunner():
     def __init__(self, epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, num_class, device):
         self.device = device
@@ -554,11 +573,15 @@ class FrostRunner():
             # adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
             # inputs = Plain_Mix(adv_inputs_1, inputs, self.device)
 
-            adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
-            adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
-            inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
+            # adv_inputs_1 = Plain_Mix(adv_inputs_1, inputs, self.device)
+            # adv_inputs_2 = Plain_Mix(adv_inputs_2, inputs, self.device)
+            # inputs = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
 
-            labels = F.one_hot(labels, self.num_class).float()
+            # labels = F.one_hot(labels, self.num_class).float()
+            onehot = F.one_hot(labels, self.num_class).float()
+            adv_inputs_1, labels_1 = Soft_Mix(inputs, adv_inputs_1, onehot, self.device)
+            adv_inputs_2, labels_2 = Soft_Mix(inputs, adv_inputs_2, onehot, self.device)
+            inputs, labels = All_Mix(adv_inputs_1, adv_inputs_2, labels_1, labels_2, self.device)
             
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)

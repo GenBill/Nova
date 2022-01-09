@@ -20,6 +20,8 @@ from advertorch.attacks import LinfPGDAttack
 from attacker import DuelPGD
 from tensorboardX import SummaryWriter
 
+from torchcontrib.optim import SWA
+
 def run(lr, epochs, batch_size):
     torch.distributed.init_process_group(
         backend='nccl',
@@ -52,6 +54,7 @@ def run(lr, epochs, batch_size):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[device_id], output_device=device_id, )
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
+    optimizer = torchcontrib.optim.SWA(optimizer, swa_start=10, swa_freq=5, swa_lr=0.05)
 
     scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10,12], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.98)
@@ -63,7 +66,7 @@ def run(lr, epochs, batch_size):
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
     )
     attacker_tar = LinfPGDAttack(    # DuelPGD(
-        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
+        model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=16/255, eps_iter=2/255, nb_iter=10, 
         rand_init=True, clip_min=0.0, clip_max=1.0, targeted=True, 
     )
 
@@ -76,10 +79,10 @@ def run(lr, epochs, batch_size):
 
     runner = FSRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 4
-    runner.double_tar(writer)
+    runner.double_untar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/MSE/double_tar_fs_Uncert100.pth')
+        torch.save(model.state_dict(), './checkpoint/MSE/double_tar_fs_Uncert100_SWA.pth')
         print('Save model.')
 
 if __name__ == '__main__':

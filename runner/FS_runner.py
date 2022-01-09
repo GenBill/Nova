@@ -125,7 +125,7 @@ class FSRunner():
         self.scheduler = scheduler
         
         self.attacker = attacker
-        self.attacker_fs = FeaSAttack(model, epsilon=8/255, step=2/255, iterations=1, clip_min=0, clip_max=1)
+        self.attacker_fs = FeaSAttack(model, epsilon=16/255, step=2/255, iterations=1, clip_min=0, clip_max=1)
         self.std_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=20, random_start=True, targeted=False)
         self.lipz_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=100, random_start=True, targeted=False)
         
@@ -561,6 +561,7 @@ class FSRunner():
         self.model.train()
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        correct_num = 0
         for inputs, labels in self.train_loader:
 
             # batchSize = labels_0.shape[0]
@@ -570,6 +571,11 @@ class FSRunner():
             _model_freeze(self.model)
             adv_inputs_1 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
             adv_inputs_2 = untarget_attack(self.attacker_fs, inputs, labels)
+
+            predicted = self.model(adv_inputs_1)
+            _, predicted = predicted.max(1)
+            correct_num += predicted.eq(labels).sum().item()
+            
             _model_unfreeze(self.model)
             
             # adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
@@ -598,7 +604,7 @@ class FSRunner():
             
             pbar.update(1)
         pbar.close()
-
+        print(correct_num/50000*4)
         return loss_meter.report()
     
     def top_10_step(self, progress, top=10):
@@ -633,13 +639,13 @@ class FSRunner():
             
             pbar.update(1)
         pbar.close()
-
         return loss_meter.report()
     
     def double_untar_step(self, progress):
         self.model.train()
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        correct_num = 0
         for inputs, labels in self.train_loader:
 
             # batchSize = labels_0.shape[0]
@@ -648,7 +654,12 @@ class FSRunner():
             
             _model_freeze(self.model)
             adv_inputs_1 = untarget_attack(self.attacker, inputs, labels)
-            adv_inputs_2 = untarget_attack(self.attacker, inputs, labels)
+            adv_inputs_2 = untarget_attack(self.attacker_fs, inputs, labels)
+            
+            predicted = self.model(adv_inputs_1)
+            _, predicted = predicted.max(1)
+            correct_num += predicted.eq(labels).sum().item()
+            
             _model_unfreeze(self.model)
 
             # adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)
@@ -671,6 +682,7 @@ class FSRunner():
             
             pbar.update(1)
         pbar.close()
+        print(correct_num/50000*4)
 
         return loss_meter.report()
 

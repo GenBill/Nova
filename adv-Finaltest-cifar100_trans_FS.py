@@ -8,7 +8,7 @@ from torchvision import transforms as T
 from tqdm.auto import tqdm
 
 from attacker import L2PGD, LinfPGD
-from dataset import Cifar10, Cifar10
+from dataset import Cifar10, Cifar100
 
 from model import resnet18_small
 # from model import resnet18_small_prime as resnet18_small    # wideresnet34 as resnet18_small
@@ -55,7 +55,7 @@ def onlyeval(checkpoint_list, batch_size):
     ])
     
     # test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
-    test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=True)
+    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=True)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 
@@ -153,9 +153,9 @@ if __name__ == '__main__':
         # 'checkpoint/adv-final-cifar10.pth',
         # 'checkpoint/MSE/vertex_tar.pth',
         # 'checkpoint/Trans/trades-resnet18-cifar10.pt',
-        'checkpoint/Trans/FS-cifar10'
+        'checkpoint/Trans/FS-cifar100'
     ]
 
-    os.environ['DATAROOT'] = '~/Datasets/cifar10'
+    os.environ['DATAROOT'] = '~/Datasets/cifar100'
     onlyeval(checkpoint_list, batch_size)
 

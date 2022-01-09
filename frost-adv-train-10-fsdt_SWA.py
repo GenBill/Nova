@@ -56,10 +56,10 @@ def run(lr, epochs, batch_size):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     optimizer = SWA(optimizer, swa_start=10, swa_freq=5, swa_lr=0.05)
 
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,3,4,5,6,8,10,12], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
+    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100,160], gamma=0.1)
+    # scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
     # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
-    scheduler = Scheduler_List([scheduler1, scheduler2])
+    # scheduler = Scheduler_List([scheduler1, scheduler2])
     
     attacker_untar = LinfPGDAttack(
         model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=10, 
@@ -72,23 +72,23 @@ def run(lr, epochs, batch_size):
 
     attacker = attacker_tar
 
-    # criterion = nn.CrossEntropyLoss()
-    criterion = Quick_MSELoss(100)
+    criterion = nn.CrossEntropyLoss()
+    # criterion = Quick_MSELoss(100)
     # criterion = Quick_WotLoss(10)
-    attacker_tar.loss_fn = criterion
+    # attacker_tar.loss_fn = criterion
 
     runner = FSRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
     runner.eval_interval = 4
-    runner.double_untar(writer)
+    runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/MSE/double_tar_fs_Uncert100_SWA.pth')
+        torch.save(model.state_dict(), './checkpoint/CE/double_tar_fs_Uncert10_SWA.pth')
         print('Save model.')
 
 if __name__ == '__main__':
-    lr = 0.01
-    epochs = 320        # 320        # 240
-    batch_size = 64     # 64*4 = 128*2 = 256*1
+    lr = 0.1
+    epochs = 200        # 320        # 240
+    batch_size = 32     # 64*4 = 128*2 = 256*1
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)
@@ -96,5 +96,5 @@ if __name__ == '__main__':
 
     writer = SummaryWriter('./runs/cifar100_double_tar')
 
-    os.environ['DATAROOT'] = '~/Datasets/cifar100'
+    os.environ['DATAROOT'] = '~/Datasets/Cifar100'
     run(lr, epochs, batch_size)

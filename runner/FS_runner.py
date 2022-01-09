@@ -12,6 +12,7 @@ from tensorboardX import SummaryWriter
 import copy
 
 from attacker import LinfPGD
+from attacker import FeaSAttack
 from advertorch.attacks import LinfPGDAttack
 
 from runner.my_Rand import btower_Rand as tower_Rand
@@ -110,7 +111,7 @@ def Uncert_Mix(inputs_1, inputs_2, y_1, y_2, device):
     y_ret = uncert*y_uncert + (1-uncert)*y_uncert
     return x_ret, y_ret
 
-class FrostRunner():
+class FSRunner():
     def __init__(self, epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, num_class, device):
         self.device = device
         self.epochs = epochs
@@ -124,6 +125,7 @@ class FrostRunner():
         self.scheduler = scheduler
         
         self.attacker = attacker
+        self.attacker_fs = FeaSAttack(model, epsilon=8/255, step=2/255, iterations=1, clip_min=0, clip_max=1)
         self.std_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=20, random_start=True, targeted=False)
         self.lipz_attacker = LinfPGD(model, epsilon=8/255, step=2/255, iterations=100, random_start=True, targeted=False)
         
@@ -567,7 +569,7 @@ class FrostRunner():
             
             _model_freeze(self.model)
             adv_inputs_1 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
-            adv_inputs_2 = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
+            adv_inputs_2 = untarget_attack(self.attacker_fs, inputs, labels)
             _model_unfreeze(self.model)
             
             # adv_inputs_1 = Plain_Mix(adv_inputs_1, adv_inputs_2, self.device)

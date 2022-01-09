@@ -64,8 +64,7 @@ class FeaSAttack(nn.Module):
         # self.training = self.model.training
 
     def perturb(self, inputs, target):
-        self.model.eval()
-        _model_freeze(self.model)
+        # self.model.eval()
         # return self.attack(x, target)
 
         batch_size = inputs.size(0)

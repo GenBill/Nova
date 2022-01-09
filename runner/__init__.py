@@ -8,6 +8,7 @@ from .Ling_runner import LingRunner
 from .Des_runner import DesRunner
 from .Self_runner import SelfRunner
 
+from .FS_runner import FSRunner
 from .Frost_runner import FrostRunner
 from .Frost_runner_DP import FrostRunner_DP
 from .Frost_runner_SR import FrostRunner_SR

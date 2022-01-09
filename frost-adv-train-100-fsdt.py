@@ -72,9 +72,10 @@ def run(lr, epochs, batch_size):
     # criterion = nn.CrossEntropyLoss()
     criterion = Quick_MSELoss(100)
     # criterion = Quick_WotLoss(10)
+    attacker_tar.loss_fn = criterion
 
     runner = FSRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.eval_interval = 2
+    runner.eval_interval = 4
     runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:

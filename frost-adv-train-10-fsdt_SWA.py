@@ -96,5 +96,5 @@ if __name__ == '__main__':
 
     writer = SummaryWriter('./runs/cifar100_double_tar')
 
-    os.environ['DATAROOT'] = '~/Datasets/Cifar100'
+    os.environ['DATAROOT'] = '~/Datasets/cifar100'
     run(lr, epochs, batch_size)

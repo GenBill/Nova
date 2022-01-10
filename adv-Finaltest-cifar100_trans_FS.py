@@ -55,7 +55,7 @@ def onlyeval(checkpoint_list, batch_size):
     ])
     
     # test_dataset = Cifar10(os.environ['DATAROOT'], transform=test_transforms, train=False)
-    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=True)
+    test_dataset = Cifar100(os.environ['DATAROOT'], transform=test_transforms, train=False)
     test_sampler = torch.utils.data.distributed.DistributedSampler(test_dataset)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler, num_workers=4, pin_memory=False)
 

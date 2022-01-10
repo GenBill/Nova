@@ -413,8 +413,10 @@ class FrostRunner():
             _model_freeze(self.model)
             adv_inputs = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
             _model_unfreeze(self.model)
-            inputs = Plain_Mix(adv_inputs, inputs, self.device)
-            labels = F.one_hot(labels, self.num_class).float()
+            # inputs = Plain_Mix(adv_inputs, inputs, self.device)
+            # labels = F.one_hot(labels, self.num_class).float()
+            onehot = F.one_hot(labels, self.num_class).float()
+            labels, inputs = Soft_Mix(inputs, adv_inputs, onehot, self.device)
             
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)

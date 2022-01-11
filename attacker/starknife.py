@@ -4,6 +4,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 
+import time
+
 def _model_freeze(model) -> None:
     for param in model.parameters():
         param.requires_grad=False
@@ -390,22 +392,19 @@ class DoubleKnifePGD(nn.Module):
 
     def perturb(self, x, y):
         batch_size = y.shape[0]
+        # self.model.eval()
 
-        ## Init Mana
-        self.model.eval()
-        _model_freeze(self.model)
-        
         ## First Test
         x = x.detach().clone().float().to(self.device)
-        y_pred = self.model(x).max(1)[1]
-        
-        acc = y_pred == y
+        acc = y == y
+
         ind_to_fool = acc.nonzero().squeeze()
         adv = x.clone()
 
-        fake_target = torch.zeros(size=(batch_size, self.class_num), dtype=int, device=y.device)
+        fake_target = torch.zeros(size=(batch_size, self.mana), dtype=int, device=y.device)
         for i in range(batch_size):
-            fake_target[i,:] = torch.randperm(self.class_num)
+            fake_target[i,:] = torch.randperm(self.class_num-1)[:self.mana]
+            fake_target[i,:] += (fake_target[i,:] >= y[i]).int()
 
         for this_round in range(self.mana):
             this_fake_target = fake_target[:, this_round]
@@ -436,6 +435,5 @@ class DoubleKnifePGD(nn.Module):
             adv_curr = self.attack_single_run(x_to_fool, y_to_fool)
             adv[ind_to_fool] = adv_curr.clone()
 
-        _model_unfreeze(self.model)
         return adv
 

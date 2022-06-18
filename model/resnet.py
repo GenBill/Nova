@@ -40,6 +40,7 @@ class resnet18_small(nn.Module):
         self.encoder[0] = nn.Conv2d(3, 64, 3, 1, 1, bias=False)
         self.encoder[3] = nn.Identity()
         self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=False)
+        # self.classifier = nn.Linear(in_features=512, out_features=n_class, bias=True)
         
         self.encoder.apply(_init_weight)
     
@@ -90,8 +91,8 @@ class resnet34(nn.Module):
         self.encoder.apply(_init_weight)
     
     def forward(self, x):
-        x_norm = self.norm(x)
-        f = self.encoder(x_norm)
+        # x_norm = self.norm(x)
+        f = self.encoder(x)
         y = self.classifier(f)
 
         return y

@@ -11,7 +11,7 @@ from advertorch.attacks import LinfPGDAttack as atk_PGD
 from advertorch.attacks import CarliniWagnerL2Attack as atk_CW
 from advertorch.attacks import LinfSPSAAttack
 
-from attacker import my_APGDAttack_targeted, StarKnifePGD, RiemKnifePGD
+from attacker import LinfPGD_lipz, my_APGDAttack_targeted, StarKnifePGD, RiemKnifePGD
 from autoattack.square import SquareAttack
 
 def _model_freeze(model) -> None:
@@ -104,9 +104,9 @@ class EvalRunner_FS():
         loss_meter = AverageMeter()
 
         if reloss:
-            attacker = atk_FGSM(self.model, self.criterion, eps=8/255, clip_min=-1.0, clip_max=1.0)
+            attacker = atk_FGSM(self.model, self.criterion, eps=8/255*2, clip_min=-1.0, clip_max=1.0)
         else:
-            attacker = atk_FGSM(self.model, eps=8/255, clip_min=-1.0, clip_max=1.0)
+            attacker = atk_FGSM(self.model, eps=8/255*2, clip_min=-1.0, clip_max=1.0)
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
         for batch_idx, (data, target) in enumerate(self.test_loader):
@@ -137,12 +137,12 @@ class EvalRunner_FS():
 
         if reloss:
             attacker = atk_PGD(
-                self.model, loss_fn=self.criterion, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                self.model, loss_fn=self.criterion, eps=8/255*2, eps_iter=2/255*2, nb_iter=nb_iter, 
                 rand_init=True, clip_min=-1.0, clip_max=1.0, targeted=False, 
             )
         else:
             attacker = atk_PGD(
-                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255*2, eps_iter=2/255*2, nb_iter=nb_iter, 
                 rand_init=True, clip_min=-1.0, clip_max=1.0, targeted=False, 
             )
         
@@ -175,12 +175,12 @@ class EvalRunner_FS():
 
         if reloss:
             attacker = atk_PGD(
-                self.model, loss_fn=self.criterion, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                self.model, loss_fn=self.criterion, eps=8/255*2, eps_iter=2/255*2, nb_iter=nb_iter, 
                 rand_init=True, clip_min=-1.0, clip_max=1.0, targeted=False, 
             )
         else:
             attacker = atk_PGD(
-                self.model, loss_fn=self.cwloss, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                self.model, loss_fn=self.cwloss, eps=8/255*2, eps_iter=2/255*2, nb_iter=nb_iter, 
                 rand_init=True, clip_min=-1.0, clip_max=1.0, targeted=False, 
             )
         
@@ -212,7 +212,7 @@ class EvalRunner_FS():
         loss_meter = AverageMeter()
 
         attacker = StarKnifePGD(
-            self.model, eps=8/255, eps_iter=1/255, nb_iter=nb_iter, 
+            self.model, eps=8/255*2, eps_iter=1/255*2, nb_iter=nb_iter, 
             mana=mana, class_num=class_num, rand_init=rand_init, targeted=targeted, doubled=doubled
         )
         
@@ -244,7 +244,7 @@ class EvalRunner_FS():
         loss_meter = AverageMeter()
 
         attacker = RiemKnifePGD(
-            self.model, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+            self.model, eps=8/255*2, eps_iter=2/255*2, nb_iter=nb_iter, 
             mana=mana, class_num=class_num, rand_init=rand_init, targeted=targeted, doubled=doubled
         )
         
@@ -276,7 +276,7 @@ class EvalRunner_FS():
         loss_meter = AverageMeter()
 
         attacker = my_APGDAttack_targeted(
-            self.model, eps=8/255, n_iter=nb_iter, 
+            self.model, eps=8/255*2, n_iter=nb_iter, 
             n_target_classes=self.num_classes-1, device=self.device
         )
         
@@ -335,12 +335,12 @@ class EvalRunner_FS():
         _model_freeze(self.model)
         if reloss:
             attacker = atk_PGD(
-                self.model, loss_fn=self.criterion, eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                self.model, loss_fn=self.criterion, eps=8/255*2, eps_iter=2/255*2, nb_iter=nb_iter, 
                 rand_init=True, clip_min=-1.0, clip_max=1.0, targeted=False, 
             )
         else:
             attacker = atk_PGD(
-                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255*2, eps_iter=2/255*2, nb_iter=nb_iter, 
                 rand_init=True, clip_min=-1.0, clip_max=1.0, targeted=False, 
             )
 
@@ -373,13 +373,52 @@ class EvalRunner_FS():
         _model_unfreeze(self.model)
         return all_Lipz
 
+    def Lipz_std_eval(self, nb_iter=100, reloss=False):
+        self.model.eval()
+        _model_freeze(self.model)
+        # attacker = LinfPGD_lipz(self.model, epsilon=8/255, step=2/255, iterations=nb_iter, random_start=True, targeted=False)
+        # attacker = LinfPGD_lipz(self.model, epsilon=16/255, step=2/255, iterations=nb_iter, random_start=True, targeted=False)
+        attacker = LinfPGD_lipz(self.model, epsilon=32/255, step=4/255, iterations=nb_iter, random_start=True, targeted=False)
+        
+        all_Lipz = 0
+        sample_size = len(self.test_loader.dataset)
+
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Lipz eval", "std Lipz"))
+        for example_0, labels in self.test_loader:
+            labels = labels.to(self.device)
+            example_0 = example_0.to(self.device)
+            example_1 = attacker.perturb(example_0, labels).detach()
+
+            # do a forward pass on the example
+            pred_0 = self.model(example_0)
+            pred_1 = self.model(example_1)
+            
+            diff_pred = pred_1 - pred_0
+            leng_diff_pred = torch.sum(torch.abs(diff_pred), dim=1)
+
+            diff_input = example_1 - example_0
+            leng_diff_input = torch.max(diff_input, dim=3).values
+            leng_diff_input = torch.max(leng_diff_input, dim=2).values
+            leng_diff_input = torch.max(leng_diff_input, dim=1).values
+            
+            # Count diff / rand_vector
+            Ret = leng_diff_pred / leng_diff_input
+            Local_Lipz = torch.sum(Ret, dim=0).item()
+            
+            all_Lipz += Local_Lipz / sample_size
+            pbar.update(1)
+
+        pbar.close()
+        _model_unfreeze(self.model)
+        return all_Lipz
+
     def Square_eval(self, progress, nb_iter=20):
         self.model.eval()
         _model_freeze(self.model)
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = SquareAttack(self.model, p_init=.8, n_queries=5000, eps=8/255, norm='Linf',
+        attacker = SquareAttack(self.model, p_init=.8, n_queries=5000, eps=8/255*2, norm='Linf',
             n_restarts=1, verbose=False, device=self.device, resc_schedule=False)
         
         pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Adv eval", progress))
@@ -409,7 +448,7 @@ class EvalRunner_FS():
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = LinfSPSAAttack(self.model, eps=8/255, delta=0.01, lr=0.01, nb_iter=nb_iter,
+        attacker = LinfSPSAAttack(self.model, eps=8/255*2, delta=0.01, lr=0.01, nb_iter=nb_iter,
             nb_sample=128, max_batch_size=64, targeted=False,
             loss_fn=None, clip_min=-1.0, clip_max=1.0
             # loss_fn=nn.CrossEntropyLoss(reduction="none"), clip_min=-1.0, clip_max=1.0
@@ -442,7 +481,7 @@ class EvalRunner_FS():
         accuracy_meter = AverageMeter()
         loss_meter = AverageMeter()
 
-        attacker = LinfSPSAAttack(self.model, eps=8/255, delta=0.01, lr=0.01, nb_iter=nb_iter,
+        attacker = LinfSPSAAttack(self.model, eps=8/255*2, delta=0.01, lr=0.01, nb_iter=nb_iter,
             nb_sample=128, max_batch_size=64, targeted=False,
             loss_fn=nn.CrossEntropyLoss(reduction="none"), clip_min=-1.0, clip_max=1.0
         )

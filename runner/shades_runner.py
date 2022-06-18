@@ -9,12 +9,43 @@ import copy
 
 from runner.my_Rand import rain_Rand, tower_Rand
 
-def soft_loss(pred, soft_targets):
-    return torch.sqrt(nn.MSELoss()(pred, soft_targets))
-
 # def soft_loss(pred, soft_targets):
-#     logsoftmax = nn.LogSoftmax(dim=1)
-#     return torch.mean(torch.sum(-soft_targets * logsoftmax(pred), dim=1))
+#     return torch.sqrt(nn.MSELoss()(pred, soft_targets))
+
+## L2 Loss
+# def soft_loss(pred, soft_targets):
+#     # return torch.mean(torch.sqrt(torch.mean((pred-soft_targets)**2, dim=1)), dim=0)
+#     return torch.mean(torch.norm(pred-soft_targets, dim=1), dim=0)
+
+def soft_loss(pred, soft_targets):
+    # logsoftmax = nn.LogSoftmax(dim=1)
+    return torch.mean(torch.sum(-soft_targets * F.log_softmax(pred, dim=1), dim=1))
+
+def label_smoothing(onehot, n_classes, factor):
+    return onehot * factor + (onehot - 1) * ((factor - 1)/(n_classes - 1))
+
+import numpy as np
+def Get_Beta(size, device, alpha=1.0):
+    rand_lambda = torch.zeros(size).to(device)
+    for i in range(rand_lambda.shape[0]):
+        rand_lambda[i,0,0,0] = np.random.beta(alpha, alpha)
+    return rand_lambda
+
+def Uncert_Mix(inputs_1, inputs_2, y_1, y_2, device, omega=0.9):
+    rand_lambda = torch.rand((inputs_1.shape[0],1,1,1), device=device)
+    # rand_lambda = Get_Beta((inputs_1.shape[0],1,1,1), device=device)
+    x_ret = rand_lambda*inputs_1 + (1-rand_lambda)*inputs_2
+    
+    rand_lambda = rand_lambda.squeeze(3).squeeze(2)
+    y_mix = rand_lambda*y_1 + (1-rand_lambda)*y_2
+
+    uncert = 1-torch.abs(rand_lambda-0.5)*2
+
+    # y_uncert = label_smoothing(y_mix, y_mix.shape[1], 0.9)
+    y_uncert = label_smoothing(y_mix, y_mix.shape[1], omega)
+
+    y_ret = uncert*y_uncert + (1-uncert)*y_mix
+    return x_ret, y_ret
 
 class ShadesRunner():
     def __init__(self, epochs, model, train_loader, shadow_loader, test_loader, criterion, optimizer, scheduler, attacker, num_class, device):
@@ -31,6 +62,8 @@ class ShadesRunner():
         self.scheduler = scheduler
         self.attacker = attacker
         self.num_class = num_class
+
+        self.omega = 0.9
 
         self.desc = lambda status, progress: f"{status}: {progress}"
         
@@ -52,10 +85,8 @@ class ShadesRunner():
             labels_1 = F.one_hot(labels_1, num_classes=self.num_class)
 
             # Create inputs & labels
-            rand_vector = torch.rand((batchSize, 1), device=self.device)
-            inputs = inputs_0 * rand_vector.unsqueeze(2).unsqueeze(3) + inputs_1 * (1-rand_vector.unsqueeze(2).unsqueeze(3))
-            labels = labels_0 * rand_vector + labels_1 * (1-rand_vector)
-            del inputs_0, inputs_1, labels_0, labels_1, rand_vector
+            inputs, labels = Uncert_Mix(inputs_0, inputs_1, labels_0, labels_1, self.device, self.omega)
+            del inputs_0, inputs_1, labels_0, labels_1
             
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)
@@ -239,6 +270,50 @@ class ShadesRunner():
         return (loss_meter.report(), accuracy_meter.sum, accuracy_meter.count)
 
     def train(self, adv=True):
+        (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Adver) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        (avg_loss, acc_sum, acc_count) = self.clean_eval("Clean init")
+        avg_loss = collect(avg_loss, self.device)
+        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        if torch.distributed.get_rank() == 0:
+            tqdm.write("Eval (Clean) init, Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        
+
+        for epoch_idx in range(self.epochs):
+            if adv:
+                avg_loss = self.adv_step("{}/{}".format(epoch_idx, self.epochs))
+            else:
+                avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                if adv:
+                    tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+                else:
+                    tqdm.write("Clean training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                avg_loss, acc_sum, acc_count = self.adv_eval("{}/{}".format(epoch_idx, self.epochs))
+                avg_loss = collect(avg_loss, self.device)
+                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+                if torch.distributed.get_rank() == 0:
+                    tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+
+                avg_loss, acc_sum, acc_count = self.clean_eval("{}/{}".format(epoch_idx, self.epochs))
+                avg_loss = collect(avg_loss, self.device)
+                avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+                if torch.distributed.get_rank() == 0:
+                    tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+
+    def Uncert_train(self, adv=True):
         (avg_loss, acc_sum, acc_count) = self.adv_eval("Adv init")
         avg_loss = collect(avg_loss, self.device)
         avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')

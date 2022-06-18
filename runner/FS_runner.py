@@ -99,6 +99,17 @@ def All_Mix(inputs_1, inputs_2, y_1, y_2, device):
     y_ret = rand_lambda*y_1 + (1-rand_lambda)*y_2
     return x_ret, y_ret
 
+# def Uncert_Mix(inputs_1, inputs_2, y_1, y_2, device):
+#     rand_lambda = torch.rand((inputs_1.shape[0],1,1,1), device=device)
+#     x_ret = rand_lambda*inputs_1 + (1-rand_lambda)*inputs_2
+    
+#     rand_lambda = rand_lambda.squeeze(3).squeeze(2)
+#     y_mix = rand_lambda*y_1 + (1-rand_lambda)*y_2
+
+#     uncert = torch.abs(rand_lambda-0.5)*2
+#     y_uncert = label_smoothing(y_mix, y_mix.shape[1], 0.99)
+#     y_ret = uncert*y_uncert + (1-uncert)*y_uncert
+#     return x_ret, y_ret
 def Uncert_Mix(inputs_1, inputs_2, y_1, y_2, device):
     rand_lambda = torch.rand((inputs_1.shape[0],1,1,1), device=device)
     x_ret = rand_lambda*inputs_1 + (1-rand_lambda)*inputs_2
@@ -106,9 +117,9 @@ def Uncert_Mix(inputs_1, inputs_2, y_1, y_2, device):
     rand_lambda = rand_lambda.squeeze(3).squeeze(2)
     y_mix = rand_lambda*y_1 + (1-rand_lambda)*y_2
 
-    uncert = torch.abs(rand_lambda-0.5)*2
-    y_uncert = label_smoothing(y_mix, y_mix.shape[1], 0.99)
-    y_ret = uncert*y_uncert + (1-uncert)*y_uncert
+    uncert = 1-torch.abs(rand_lambda-0.5)*2
+    y_uncert = label_smoothing(y_mix, y_mix.shape[1], 0.9)
+    y_ret = uncert*y_uncert + (1-uncert)*y_mix
     return x_ret, y_ret
 
 class FSRunner():
@@ -141,6 +152,9 @@ class FSRunner():
         self.desc = lambda status, progress: f"{status}: {progress}"
         
     def add_shower(self, epoch_idx):
+
+        _model_freeze(self.model)
+
         # train test
         avg_loss, acc_sum, acc_count = self.train_eval("{}/{}".format(epoch_idx, self.epochs))
         avg_loss = collect(avg_loss, self.device)
@@ -155,12 +169,14 @@ class FSRunner():
         if torch.distributed.get_rank() == 0:
             tqdm.write("Eval (Clean) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
 
-        # std adv test
-        avg_loss, acc_sum, acc_count = self.std_adv_eval("{}/{}".format(epoch_idx, self.epochs))
-        avg_loss = collect(avg_loss, self.device)
-        avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+        # # std adv test
+        # avg_loss, acc_sum, acc_count = self.std_adv_eval("{}/{}".format(epoch_idx, self.epochs))
+        # avg_loss = collect(avg_loss, self.device)
+        # avg_acc = collect(acc_sum, self.device, mode='sum') / collect(acc_count, self.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     tqdm.write("Eval (Adver) {}/{}, Loss avg. {:.6f}, Acc. {:.6f}".format(epoch_idx, self.epochs, avg_loss, avg_acc))
+
+        _model_unfreeze(self.model)
 
     def add_writer(self, writer, epoch_idx):
         # train test
@@ -249,6 +265,58 @@ class FSRunner():
             tqdm.write("Eval (Lipz) {}/{}, adv Lipz. {:.6f}".format(epoch_idx, self.epochs, adv_lipz))
             # writer.add_scalar("std_Lipz", std_lipz, epoch_idx)
             # writer.add_scalar("adv_Lipz", adv_lipz, epoch_idx)
+
+    def plain_fs_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        for inputs, labels in self.train_loader:
+
+            # batchSize = labels_0.shape[0]
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+            
+            _model_freeze(self.model)
+            inputs = untarget_attack(self.attacker_fs, inputs, labels)
+            _model_unfreeze(self.model)
+            
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
+    
+    def clean_step(self, progress):
+        self.model.train()
+        loss_meter = AverageMeter()
+        pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Clean train", progress))
+        for inputs, labels in self.train_loader:
+
+            # batchSize = labels_0.shape[0]
+            inputs = inputs.to(self.device)
+            labels = labels.to(self.device)
+            
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            pbar.set_postfix_str("Loss {:.6f}".format(loss.item()))
+            loss_meter.update(loss.item())
+
+            self.optimizer.zero_grad()
+            loss.backward()
+            self.optimizer.step()
+            
+            pbar.update(1)
+        pbar.close()
+
+        return loss_meter.report()
 
     def wo_tar_step(self, progress):
         self.model.train()
@@ -1127,3 +1195,45 @@ class FSRunner():
 
         tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
         self.final_shower(epoch_idx+2)
+    
+    def plain_fs(self, writer):
+        # self.attacker_fs = FeaSAttack(self.model, epsilon=16/255, step=2/255, iterations=1, clip_min=0, clip_max=1)
+
+        ## Add a Writer
+        self.add_shower(0)
+        for epoch_idx in range(self.epochs):
+
+            avg_loss = self.plain_fs_step("{}/{}".format(epoch_idx, self.epochs))
+
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_shower(epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))
+    
+    def clean_finetune(self, writer):
+        ## Add a Writer
+        self.add_shower(0)
+        for epoch_idx in range(self.epochs):
+
+            avg_loss = self.clean_step("{}/{}".format(epoch_idx, self.epochs))
+
+            avg_loss = collect(avg_loss, self.device)
+            if torch.distributed.get_rank() == 0:
+                tqdm.write("Adv training procedure {} (total {}), Loss avg. {:.6f}".format(epoch_idx, self.epochs, avg_loss))
+            
+            ## Add a Writer
+            if epoch_idx % self.eval_interval == (self.eval_interval-1):
+                self.add_shower(epoch_idx+1)
+            
+            if self.scheduler is not None:
+                self.scheduler.step()
+
+        tqdm.write("Finish training on rank {}!".format(torch.distributed.get_rank()))

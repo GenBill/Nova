@@ -25,3 +25,6 @@ print(model)
 # checkpoint = torch.load(checkpoint_path)
 # model.load_state_dict(checkpoint["state_dict"])
 
+m = torch.distributions.beta.Beta(1.0,1.0)
+a = m.sample()
+print(a)

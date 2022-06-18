@@ -11,7 +11,7 @@ from advertorch.attacks import LinfPGDAttack as atk_PGD
 from advertorch.attacks import CarliniWagnerL2Attack as atk_CW
 from advertorch.attacks import LinfSPSAAttack
 
-from attacker import my_APGDAttack_targeted, StarKnifePGD, RiemKnifePGD
+from attacker import LinfPGD_lipz, my_APGDAttack_targeted, StarKnifePGD, RiemKnifePGD
 from autoattack.square import SquareAttack
 
 def _model_freeze(model) -> None:
@@ -340,13 +340,14 @@ class EvalRunner():
             )
         else:
             attacker = atk_PGD(
-                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=8/255, eps_iter=2/255, nb_iter=nb_iter, 
+                self.model, loss_fn=nn.CrossEntropyLoss(reduction="sum"), eps=16/255, eps_iter=2/255, nb_iter=nb_iter, 
                 rand_init=True, clip_min=0.0, clip_max=1.0, targeted=False, 
             )
 
         all_Lipz = 0
         sample_size = len(self.test_loader.dataset)
 
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Lipz eval", "adv Lipz"))
         for example_0, labels in self.test_loader:
             labels = labels.to(self.device)
             example_0 = example_0.to(self.device)
@@ -369,7 +370,47 @@ class EvalRunner():
             Local_Lipz = torch.sum(Ret, dim=0).item()
             
             all_Lipz += Local_Lipz / sample_size
+            pbar.update(1)
 
+        pbar.close()
+        _model_unfreeze(self.model)
+        return all_Lipz
+    
+    def Lipz_std_eval(self, nb_iter=100, reloss=False):
+        self.model.eval()
+        _model_freeze(self.model)
+        # attacker = LinfPGD_lipz(self.model, epsilon=8/255, step=2/255, iterations=nb_iter, random_start=True, targeted=False)
+        attacker = LinfPGD_lipz(self.model, epsilon=16/255, step=2/255, iterations=nb_iter, random_start=True, targeted=False)
+        
+        all_Lipz = 0
+        sample_size = len(self.test_loader.dataset)
+
+        pbar = tqdm(total=len(self.test_loader), leave=False, desc=self.desc("Lipz eval", "std Lipz"))
+        for example_0, labels in self.test_loader:
+            labels = labels.to(self.device)
+            example_0 = example_0.to(self.device)
+            example_1 = attacker.perturb(example_0, labels).detach()
+
+            # do a forward pass on the example
+            pred_0 = self.model(example_0)
+            pred_1 = self.model(example_1)
+            
+            diff_pred = pred_1 - pred_0
+            leng_diff_pred = torch.sum(torch.abs(diff_pred), dim=1)
+
+            diff_input = example_1 - example_0
+            leng_diff_input = torch.max(diff_input, dim=3).values
+            leng_diff_input = torch.max(leng_diff_input, dim=2).values
+            leng_diff_input = torch.max(leng_diff_input, dim=1).values
+            
+            # Count diff / rand_vector
+            Ret = leng_diff_pred / leng_diff_input
+            Local_Lipz = torch.sum(Ret, dim=0).item()
+            
+            all_Lipz += Local_Lipz / sample_size
+            pbar.update(1)
+
+        pbar.close()
         _model_unfreeze(self.model)
         return all_Lipz
 

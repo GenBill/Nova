@@ -56,6 +56,10 @@ def onlyeval(checkpoint_list, batch_size):
 
         runner = EvalRunner(model, test_dataset.class_num, test_loader, criterion, device)
 
+        # this_lipz = runner.Lipz_std_eval(nb_iter=100)
+        # if torch.distributed.get_rank() == 0:
+        #     print("Locally Lipz : {:.6f}".format(this_lipz))
+
         # Test on Clean
         avg_loss, acc_sum, acc_count = runner.clean_eval("Eval Clean")
         avg_loss = collect(avg_loss, runner.device)
@@ -84,42 +88,41 @@ def onlyeval(checkpoint_list, batch_size):
         if torch.distributed.get_rank() == 0:
             print("Eval (PGD20) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
-        # Test on PGD100
-        avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD100", nb_iter=100)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+        # # Test on PGD100
+        # avg_loss, acc_sum, acc_count = runner.PGD_eval("Eval PGD100", nb_iter=100)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (PGD100) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
             
-        this_lipz = runner.Lipz_eval(nb_iter=100)
-        if torch.distributed.get_rank() == 0:
-            print("Locally Lipz : {:.6f}".format(this_lipz))
+        # this_lipz = runner.Lipz_eval(nb_iter=100)
+        # if torch.distributed.get_rank() == 0:
+        #     print("Locally Lipz : {:.6f}".format(this_lipz))
+
+        # # Test on CW20
+        # avg_loss, acc_sum, acc_count = runner.CWnum_eval("Eval CW", nb_iter=20)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (CW) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
+
+        # # Test on CW100
+        # avg_loss, acc_sum, acc_count = runner.CWnum_eval("Eval CW", nb_iter=100)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (CW) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
         
-        # Test on SPSA
-        avg_loss, acc_sum, acc_count = runner.SPSA_eval("Eval SPSA", nb_iter=100)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (SPSA) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-
-        # Test on CW20
-        avg_loss, acc_sum, acc_count = runner.CWnum_eval("Eval CW", nb_iter=20)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (CW) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-
-        # Test on CW100
-        avg_loss, acc_sum, acc_count = runner.CWnum_eval("Eval CW", nb_iter=100)
-        avg_loss = collect(avg_loss, runner.device)
-        avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
-        if torch.distributed.get_rank() == 0:
-            print("Eval (CW) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
-            
+        # # Test on SPSA
+        # avg_loss, acc_sum, acc_count = runner.SPSA_eval("Eval SPSA", nb_iter=100)
+        # avg_loss = collect(avg_loss, runner.device)
+        # avg_acc = collect(acc_sum, runner.device, mode='sum') / collect(acc_count, runner.device, mode='sum')
+        # if torch.distributed.get_rank() == 0:
+        #     print("Eval (SPSA) , Loss avg. {:.6f}, Acc. {:.6f}".format(avg_loss, avg_acc))
 
 if __name__ == '__main__':
 
-    batch_size = 32
+    batch_size = 32#128#32
     manualSeed = 2049
 
     random.seed(manualSeed)
@@ -127,10 +130,16 @@ if __name__ == '__main__':
     writer = SummaryWriter('./runs/void')
 
     checkpoint_list = [
+        # 'all_check/double_tar_ls_uncert.pth',
         # 'all_check/double_tar_280.pth',
-        'checkpoint/clean-final-cifar10.pth',
-        'checkpoint/adv-final-cifar10.pth',
-        # 'checkpoint/MSE/vertex_tar.pth'
+        # 'checkpoint/clean-final-cifar10.pth',
+        # 'checkpoint/adv-final-cifar10.pth',
+        # 'checkpoint/MSE/vertex_tar.pth',
+        
+        # 'checkpoint/MSE/double_tar_fs_Uncert10.pth',
+        'checkpoint/MSE/double_tar_Uncert10.pth',
+        # 'checkpoint/MSE/double_tar_fs10.pth',
+        'checkpoint/MSE/double_tar.pth'
     ]
 
     os.environ['DATAROOT'] = '~/Datasets/cifar10'

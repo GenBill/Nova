@@ -67,20 +67,23 @@ def run(lr, epochs, batch_size):
 
     attacker = attacker_tar
 
-    # criterion = nn.CrossEntropyLoss()
-    criterion = Quick_MSELoss(10)
+    criterion = nn.CrossEntropyLoss()
+    # criterion = Quick_MSELoss(10)
 
     runner = FrostRunner(epochs, model, train_loader, test_loader, criterion, optimizer, scheduler, attacker, train_dataset.class_num, device)
-    runner.vertex_tar(writer)
+    runner.eval_interval = 10
+    # runner.vertex_tar(writer)
+    runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/svhn_vertex_tar.pth')
+        # torch.save(model.state_dict(), './checkpoint/svhn_vertex_tar.pth')
+        torch.save(model.state_dict(), './beta_check/double_tar_svhn.pth')
         print('Save model.')
 
 if __name__ == '__main__':
     lr = 0.032
     epochs = 280        # 320        # 240
-    batch_size = 128     # 64*8 = 128*4 = 256*2
+    batch_size = 64    # 64*8 = 128*4 = 256*2
     manualSeed = 2049   # 2077
 
     random.seed(manualSeed)

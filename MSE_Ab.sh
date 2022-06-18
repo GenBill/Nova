@@ -10,3 +10,6 @@ CUDA_VISIBLE_DEVICES=2,3 python -m torch.distributed.launch --nproc_per_node=2 -
 
 CUDA_VISIBLE_DEVICES=0,1,2,3 python -m torch.distributed.launch --nproc_per_node=4 --master_port 10252 adv-Finaltest-cifar10-Frost.py 
 
+# MIxup Final Test
+CUDA_VISIBLE_DEVICES=8,9 python -m torch.distributed.launch --nproc_per_node=2 --master_port 10368 adv-Finaltest-cifar10_Uce.py
+CUDA_VISIBLE_DEVICES=4,5,6,7 python -m torch.distributed.launch --nproc_per_node=4 --master_port 10369 adv-Finaltest-cifar10_Udt.py

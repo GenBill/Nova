@@ -78,7 +78,8 @@ def run(lr, epochs, batch_size):
     runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './checkpoint/MSE/double_tar.pth')
+        # torch.save(model.state_dict(), './all_check/double_tar_ls_uncert.pth')
+        torch.save(model.state_dict(), './beta_check/double_tar_10.pth')
         print('Save model.')
 
 if __name__ == '__main__':

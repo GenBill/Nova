@@ -16,3 +16,4 @@ from .Frost_runner_KM import FrostRunner_KM
 from .Ptest_runner import PtestRunner
 
 from .Ele_runner import EleRunner
+from .shades_runner import ShadesRunner

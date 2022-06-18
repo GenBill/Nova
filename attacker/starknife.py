@@ -1,6 +1,10 @@
+from random import random
+from numpy.core.fromnumeric import size
 import torch
 import torch.nn as nn
 import numpy as np
+
+import time
 
 def _model_freeze(model) -> None:
     for param in model.parameters():
@@ -322,3 +326,114 @@ class StarKnifePGD(nn.Module):
             print('ACC', true_ind_curr.shape[0], '/', x.shape[0], '=', true_ind_curr.shape[0]/x.shape[0])
             _model_unfreeze(self.model)
             return adv
+
+
+class DoubleKnifePGD(nn.Module):
+    """Projected Gradient Decent(PGD) attack.
+    Can be used to adversarial training.
+    """
+    def __init__(self, model, mana=2, eps=8/255, eps_iter=2/255, nb_iter=20, class_num=10, criterion=None, rand_init=True, targeted=False):
+        super(DoubleKnifePGD, self).__init__()
+        # Arguments of PGD
+        self.device = next(model.parameters()).device
+
+        self.model = model
+        self.mana = mana
+        self.eps = eps
+        self.eps_iter = eps_iter
+        self.nb_iter = nb_iter
+        self.rand_init = rand_init
+        self.targeted = targeted    # False
+        self.class_num = class_num
+
+        self.criterion = criterion
+        if self.criterion is None:
+            self.criterion = lambda model, input, target: nn.functional.cross_entropy(model(input), target)
+
+    def attack_single_run(self, data, target):
+        x_adv = data.detach() + (torch.rand_like(data)*2-1)*self.eps
+        x_adv = torch.clamp(x_adv, 0.0, 1.0)
+
+        for _ in range(self.nb_iter):
+            x_adv.requires_grad_()
+            output = self.model(x_adv)
+            self.model.zero_grad()
+            with torch.enable_grad():
+                loss = nn.functional.cross_entropy(output, target)
+            
+            loss.backward()
+            eta = self.eps_iter * x_adv.grad.sign()
+            x_adv = x_adv.detach() + eta
+            x_adv = torch.min(torch.max(x_adv, data - self.eps), data + self.eps)
+            x_adv = torch.clamp(x_adv, 0.0, 1.0)
+        
+        return x_adv
+
+    
+    def target_single_run(self, data, target):
+        x_adv = data.detach() + (torch.rand_like(data)*2-1)*self.eps
+        x_adv = torch.clamp(x_adv, 0.0, 1.0)
+
+        for _ in range(self.nb_iter):
+            x_adv.requires_grad_()
+            output = self.model(x_adv)
+            self.model.zero_grad()
+            with torch.enable_grad():
+                loss = nn.functional.cross_entropy(output, target)
+            
+            loss.backward()
+            eta = self.eps_iter * x_adv.grad.sign()
+            x_adv = x_adv.detach() - eta
+            x_adv = torch.min(torch.max(x_adv, data - self.eps), data + self.eps)
+            x_adv = torch.clamp(x_adv, 0.0, 1.0)
+        
+        return x_adv
+
+
+    def perturb(self, x, y):
+        batch_size = y.shape[0]
+        # self.model.eval()
+
+        ## First Test
+        x = x.detach().clone().float().to(self.device)
+        acc = y == y
+
+        ind_to_fool = acc.nonzero().squeeze()
+        adv = x.clone()
+
+        fake_target = torch.zeros(size=(batch_size, self.mana), dtype=int, device=y.device)
+        for i in range(batch_size):
+            fake_target[i,:] = torch.randperm(self.class_num-1)[:self.mana]
+            fake_target[i,:] += (fake_target[i,:] >= y[i]).int()
+
+        for this_round in range(self.mana):
+            this_fake_target = fake_target[:, this_round]
+
+            if len(ind_to_fool.shape) == 0:
+                ind_to_fool = ind_to_fool.unsqueeze(0)
+            if ind_to_fool.numel() != 0:
+                x_to_fool = x[ind_to_fool].clone()
+                y_to_fool = y[ind_to_fool].clone()
+                tar_to_fool = this_fake_target[ind_to_fool].clone()
+
+                adv_curr = self.target_single_run(x_to_fool, tar_to_fool)
+                acc_curr = self.model(adv_curr).max(1)[1] == y_to_fool
+                ind_curr = (acc_curr == 0).nonzero().squeeze()
+                true_ind_curr = (acc_curr == 1).nonzero().squeeze()
+
+                acc[ind_to_fool[ind_curr]] = 0
+                adv[ind_to_fool[ind_curr]] = adv_curr[ind_curr].clone()
+
+                ind_to_fool = ind_to_fool[true_ind_curr].clone()
+
+        if len(ind_to_fool.shape) == 0:
+            ind_to_fool = ind_to_fool.unsqueeze(0)
+        if ind_to_fool.numel() != 0:
+            x_to_fool = x[ind_to_fool].clone()
+            y_to_fool = y[ind_to_fool].clone()
+
+            adv_curr = self.attack_single_run(x_to_fool, y_to_fool)
+            adv[ind_to_fool] = adv_curr.clone()
+
+        return adv
+

@@ -17,6 +17,8 @@ from advertorch.attacks import LinfPGDAttack
 from runner.my_Rand import btower_Rand as tower_Rand
 from runner.my_Rand import brain_Rand as rain_Rand
 
+import time
+
 def _model_freeze(model) -> None:
     for param in model.parameters():
         param.requires_grad=False
@@ -435,6 +437,7 @@ class FrostRunner():
         self.model.train()
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        correct_num = 0
         for inputs, labels in self.train_loader:
 
             # batchSize = labels_0.shape[0]
@@ -443,9 +446,15 @@ class FrostRunner():
             
             _model_freeze(self.model)
             adv_inputs = target_attack(self.attacker, inputs, labels, self.num_class, self.device)
+            predicted = self.model(adv_inputs)
+            _, predicted = predicted.max(1)
+            correct_num += predicted.eq(labels).sum().item()
+            
             _model_unfreeze(self.model)
-            inputs = Plain_Mix(adv_inputs, inputs, self.device)
-            labels = F.one_hot(labels, self.num_class).float()
+            # inputs = Plain_Mix(adv_inputs, inputs, self.device)
+            # labels = F.one_hot(labels, self.num_class).float()
+            onehot = F.one_hot(labels, self.num_class).float()
+            inputs, labels = Soft_Mix(inputs, adv_inputs, onehot, self.device)
             
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)
@@ -458,7 +467,7 @@ class FrostRunner():
             
             pbar.update(1)
         pbar.close()
-
+        print(correct_num/50000*4)
         return loss_meter.report()
     
     def reg_vertex_tar_step(self, progress):
@@ -498,6 +507,7 @@ class FrostRunner():
         self.model.train()
         loss_meter = AverageMeter()
         pbar = tqdm(total=len(self.train_loader), leave=False, desc=self.desc("Adv train", progress))
+        correct_num = 0
         for inputs, labels in self.train_loader:
 
             # batchSize = labels_0.shape[0]
@@ -506,9 +516,17 @@ class FrostRunner():
             
             _model_freeze(self.model)
             adv_inputs = untarget_attack(self.attacker, inputs, labels)
+            time.sleep(0.01)
+
+            predicted = self.model(adv_inputs)
+            _, predicted = predicted.max(1)
+            correct_num += predicted.eq(labels).sum().item()
+
             _model_unfreeze(self.model)
-            inputs = Plain_Mix(adv_inputs, inputs, self.device)
-            labels = F.one_hot(labels, self.num_class).float()
+            # inputs = Plain_Mix(adv_inputs, inputs, self.device)
+            # labels = F.one_hot(labels, self.num_class).float()
+            onehot = F.one_hot(labels, self.num_class).float()
+            inputs, labels = Soft_Mix(inputs, adv_inputs, onehot, self.device)
             
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)
@@ -521,7 +539,7 @@ class FrostRunner():
             
             pbar.update(1)
         pbar.close()
-
+        print(correct_num/50000)
         return loss_meter.report()
 
     def edge_tar_step(self, progress):
@@ -946,6 +964,7 @@ class FrostRunner():
         for epoch_idx in range(self.epochs):
 
             avg_loss = self.vertex_untar_step("{}/{}".format(epoch_idx, self.epochs))
+            # time.sleep(10)
 
             avg_loss = collect(avg_loss, self.device)
             if torch.distributed.get_rank() == 0:

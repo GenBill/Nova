@@ -5,5 +5,6 @@ from .fea_link import FeaSAttack
 
 from .autopgd_base import *
 # from .quick_pgd import QLinfPGD
+from .starknife import DoubleKnifePGD
 from .starknife import StarKnifePGD
 from .riemknife import RiemKnifePGD

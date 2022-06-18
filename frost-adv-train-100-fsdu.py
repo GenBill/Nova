@@ -56,8 +56,8 @@ def run(lr, epochs, batch_size):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
     optimizer = SWA(optimizer, swa_start=10, swa_freq=5, swa_lr=0.05)
 
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,10,12], gamma=1.78)
-    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.98)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,3,4,5,6,8,10,12], gamma=1.78)
+    scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
     # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
     scheduler = Scheduler_List([scheduler1, scheduler2])
     

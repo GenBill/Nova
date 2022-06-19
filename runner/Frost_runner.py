@@ -628,8 +628,8 @@ class FrostRunner():
             adv_inputs_1, labels_1 = Soft_Mix(inputs, adv_inputs_1, onehot, self.device)
             adv_inputs_2, labels_2 = Soft_Mix(inputs, adv_inputs_2, onehot, self.device)
 
-            # inputs, labels = Uncert_Mix(adv_inputs_1, adv_inputs_2, labels_1, labels_2, self.device, self.omega)
-            inputs, labels = All_Mix(adv_inputs_1, adv_inputs_2, labels_1, labels_2, self.device)
+            inputs, labels = Uncert_Mix(adv_inputs_1, adv_inputs_2, labels_1, labels_2, self.device, self.omega)
+            # inputs, labels = All_Mix(adv_inputs_1, adv_inputs_2, labels_1, labels_2, self.device)
             
             outputs = self.model(inputs)
             loss = soft_loss(outputs, labels)

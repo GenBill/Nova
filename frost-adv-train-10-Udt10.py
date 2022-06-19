@@ -53,7 +53,7 @@ def run(lr, epochs, batch_size):
 
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=0.9, weight_decay=2e-4)
 
-    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8], gamma=1.78)
+    scheduler1 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[2,4,6,8,], gamma=1.78)
     scheduler2 = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.985)
     # scheduler3 = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[200,220], gamma=0.5)
     scheduler = Scheduler_List([scheduler1, scheduler2])
@@ -80,7 +80,7 @@ def run(lr, epochs, batch_size):
     runner.double_tar(writer)
 
     if torch.distributed.get_rank() == 0:
-        torch.save(model.state_dict(), './check8/double_tar_Uncert10_10.pth')
+        torch.save(model.state_dict(), './check6/double_tar_Uncert10_10.pth')
         print('Save model.')
 
 if __name__ == '__main__':

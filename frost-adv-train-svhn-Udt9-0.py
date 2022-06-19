@@ -34,7 +34,7 @@ def run(lr, epochs, batch_size):
         T.RandomCrop(32, padding=4),
         # T.RandomHorizontalFlip(),
         T.ToTensor(),
-        # Onepixel(32,32)
+        Onepixel(32,32)
     ])
     test_transforms = T.Compose([
         T.ToTensor(),

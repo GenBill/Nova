@@ -1,11 +1,9 @@
-# Nova
+# Optimized L2 Norm Loss for Adversarial Robustness
 GenBill的会议论文+硕士论文代码库（暂定）
 
 还没来得及整理代码……
 
 Double Mixup Algorithm for Adversarial Training
-
-Paper: Optimized L2 Norm Loss for Adversarial Robustness
 
 https://ieeexplore.ieee.org/document/9807767
 

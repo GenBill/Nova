@@ -5,7 +5,7 @@ GenBill的会议论文+硕士论文代码库（暂定）
 
 Double Mixup Algorithm for Adversarial Training
 
-Paper: Optimized L2 norm Loss for Adversarial
+Paper: Optimized L2 Norm Loss for Adversarial Robustness
 
 https://ieeexplore.ieee.org/document/9807767
 
